@@ -6,9 +6,9 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const rand=n=>Math.floor(Math.random()*n);
 function setSymbolStyle(element,value){
  const number=Number(value);
- element.classList.remove("symbol-even","symbol-odd");
+ element.classList.remove("symbol-even","symbol-odd","symbol-zero");
  if(Number.isInteger(number)&&number>=0&&number<=9){
-  element.classList.add(number%2===0?"symbol-even":"symbol-odd");
+  element.classList.add(number===0?"symbol-zero":number%2===0?"symbol-even":"symbol-odd");
  }
 }
 function digits(a){
@@ -16,7 +16,16 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3"},volumes:{stop:0.22,jackpot:0.5}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3"},volumes:{stop:0.22,jackpot:0.65}};
+// HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
+const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3")};
+Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
+function playFallback(key){
+ const source=effectFallback[key];if(!source)return;
+ try{const a=source.cloneNode(true);a.volume=effectAudio.volumes[key];
+  const promise=a.play();if(promise&&promise.catch)promise.catch(e=>console.warn("効果音の再生が制限されました",key,e));
+ }catch(e){console.warn("効果音フォールバック失敗",key,e);}
+}
 function ensureEffectContext(){
  const AudioContextType=window.AudioContext||window.webkitAudioContext;
  if(!AudioContextType)return null;
@@ -41,14 +50,14 @@ function unlockEffects(){
 function playEffect(key){
  if(!sound)return;
  const ctx=effectAudio.ctx,buffer=effectAudio.buffers[key];
- if(!ctx||!buffer){unlockEffects();return;}
- if(ctx.state!=="running")ctx.resume().catch(()=>{});
+ if(!ctx||!buffer){unlockEffects();playFallback(key);return;}
+ if(ctx.state!=="running"){ctx.resume().catch(()=>{});playFallback(key);return;}
  try{
   const source=ctx.createBufferSource(),gain=ctx.createGain();
   source.buffer=buffer;gain.gain.value=effectAudio.volumes[key];
   source.connect(gain);gain.connect(ctx.destination);source.start(0);
   source.onended=()=>{source.disconnect();gain.disconnect();};
- }catch(err){console.warn("効果音再生エラー",key,err);}
+ }catch(err){console.warn("効果音再生エラー",key,err);playFallback(key);}
 }
 function playStopSound(){playEffect("stop");}
 function playJackpotSound(){playEffect("jackpot");}
@@ -148,6 +157,8 @@ function bgmTick(now){
 
 let reelAnimations=[];
 async function spinReels(symbols, duration){
+ const isReach=String(symbols[0])===String(symbols[2]);
+ ui.digits.classList.remove("reach-focus");
  // Visible vertical reel scrolling. Stop order: left (0), right (2), middle (1).
  const base=Math.max(900,Math.min(Number(duration)||1200,4200));
  const offsets=[0,640,320]; // L=first, R=second, M=last
@@ -169,6 +180,12 @@ async function spinReels(symbols, duration){
        track.style.transform="translate3d(0,0,0)";
        reel.classList.remove("spinning");
        playStopSound();
+       // When the right reel stops on the same symbol as the left,
+       // pull the outer reels apart and emphasize the still-spinning middle reel.
+       if(i===2 && isReach){
+         ui.digits.classList.add("reach-focus");
+       }
+       if(i===1){ui.digits.classList.remove("reach-focus");}
        resolve();return;
      }
      const cycle=Math.floor(elapsed/stepMs);
@@ -176,7 +193,7 @@ async function spinReels(symbols, duration){
        lastStep=cycle;
        const top=document.createElement("span"),bottom=document.createElement("span");
        top.textContent=String(previous);setSymbolStyle(top,previous);
-       previous=rand(9)+1;
+       previous=rand(10);
        bottom.textContent=String(previous);setSymbolStyle(bottom,previous);
        track.replaceChildren(top,bottom);
      }
@@ -313,15 +330,45 @@ function draw(){
  refill();return {hit:false,color:hold.color};
 }
 function finalSymbols(out){
- const n=rand(9)+1;
- // ハズレは必ず不揃い。リーチ煽りは行わない。
- return out.hit?[n,n,n]:[n,(n%9)+1,(n+2)%9+1];
+ // Determine the special presentation only after jackpot and payout are fixed.
+ const maximum=Math.max(...spec.rows.filter(row=>row[1]>0).map(row=>row[0]));
+ if(out.hit&&out.balls===maximum&&Math.random()<0.25){
+  out.special810=true;
+  return [8,1,0];
+ }
+ // Ordinary jackpots always align three identical symbols (0-9).
+ if(out.hit){
+  const n=rand(10);
+  return [n,n,n];
+ }
+ // Misses are randomized, not sequential 123/456 patterns.
+ // Keep some reach misses to preserve the left/right reach animation.
+ if(Math.random()<0.18){
+  const n=rand(10);
+  const middle=(n+1+rand(9))%10; // guaranteed different
+  return [n,middle,n];
+ }
+ // All other misses: three independently drawn symbols,
+ // rejecting triple matches, accidental 810 and reach duplicates.
+ let a,b,c;
+ do{
+  a=rand(10);b=rand(10);c=rand(10);
+ }while(a===c || (a===8&&b===1&&c===0));
+ return [a,b,c];
 }
+
 async function showFinal(out,ms){
  ui.digits.classList.toggle("win",false);
+ ui.digits.classList.remove("reach-focus","special-810-freeze");
  ui.message.textContent="SPINNING";
  ui.sub.textContent="図柄変動中 / 左 → 右 → 中 の順に停止";
  await spinReels(finalSymbols(out),ms);
+ if(out.special810){
+  // Freeze all three stopped symbols for about one second, without advancing auto mode.
+  ui.digits.classList.add("special-810-freeze");
+  await wait(1000);
+  ui.digits.classList.remove("special-810-freeze");
+ }
  ui.digits.classList.toggle("win",out.hit);
  ui.message.textContent=out.hit?"BONUS":"NEXT";
  ui.sub.textContent=out.hit?`+${out.balls.toLocaleString()}玉 / ${chain}連`:`ハズレ / ST残り${remaining}回転`;
@@ -335,7 +382,7 @@ async function animation(out){await showFinal(out,950);}
 async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);stats();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
 function start(){if(busy)return;unlockEffects();prealertEnabled=$("prealertEnabled").checked;
  prealertTarget=Number($("prealertRate").value);const v=parse();preview();if(!v)return;stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();pendingPrealerts=0;ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();note(550,.2);}
-function fast(){if(!active||busy)return;pendingPrealerts=0;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(9)+1),String(rand(9)+1),String(rand(9)+1)]);stats();end();busy=false;controls();}
+function fast(){if(!active||busy)return;pendingPrealerts=0;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();busy=false;controls();}
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
 function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>300)box.lastChild.remove();}
 async function autoPlay(){

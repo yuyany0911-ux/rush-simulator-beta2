@@ -913,3 +913,49 @@ body.rush-immersive #appRoot.play-mode .theater-bar button{
 @media(max-width:390px){
  body.rush-immersive #appRoot.play-mode #screen{height:62dvh!important;min-height:400px!important;}
 }
+
+/* Ver.48: larger face holds, tighter spacing, and left/right reach reveal. */
+#screen .digits.reel-bank .reel{
+  transition:translate .34s cubic-bezier(.2,.75,.2,1),scale .34s cubic-bezier(.2,.75,.2,1);
+  transform-origin:center center;
+}
+#screen .digits.reel-bank.reach-focus #reel1{translate:-12px 0;scale:.92;}
+#screen .digits.reel-bank.reach-focus #reel3{translate:12px 0;scale:.92;}
+#screen .digits.reel-bank.reach-focus #reel2{scale:1.19;z-index:8;}
+#screen .digits.reel-bank.reach-focus #reel2 .reel-track>span{
+  filter:drop-shadow(0 0 10px rgba(255,230,130,.6));
+}
+/* Keep five holds in a row, with the active leftmost hold visibly larger. */
+#appRoot.play-mode #screen #holdLamps{gap:0px!important;justify-content:center!important;}
+#appRoot.play-mode #screen #holdLamps .hold-orb{
+ width:clamp(40px,11.5vw,51px)!important;
+ height:clamp(40px,11.5vw,51px)!important;
+ flex-basis:clamp(40px,11.5vw,51px)!important;
+}
+#appRoot.play-mode #screen #holdLamps .hold-orb.next:not(.consuming){
+ width:clamp(53px,15vw,65px)!important;
+ height:clamp(53px,15vw,65px)!important;
+ flex-basis:clamp(53px,15vw,65px)!important;
+}
+#appRoot.play-mode #screen .rush-bottom-holds{
+ left:63%!important;
+ min-width:0!important;
+ width:min(70%,275px)!important;
+ padding-left:0!important;padding-right:0!important;
+}
+@media(max-width:370px){
+ #appRoot.play-mode #screen #holdLamps .hold-orb{width:39px!important;height:39px!important;flex-basis:39px!important;}
+ #appRoot.play-mode #screen #holdLamps .hold-orb.next:not(.consuming){width:51px!important;height:51px!important;flex-basis:51px!important;}
+ #screen .digits.reel-bank.reach-focus #reel1{translate:-7px 0;}
+ #screen .digits.reel-bank.reach-focus #reel3{translate:7px 0;}
+ #screen .digits.reel-bank.reach-focus #reel2{scale:1.12;}
+}
+
+/* Ver.49: zero is a normal reel symbol, distinguished by violet lettering. */
+#screen .reel .reel-track > span.symbol-zero,
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-zero{
+ color:#cf91ff!important;
+ text-shadow:0 0 6px #e6c4ff,0 0 17px #9c45ff,0 0 30px #6b1bbf!important;
+}
+#screen .digits.reel-bank.special-810-freeze .reel .reel-track{animation:none!important;}
+#screen .digits.reel-bank.special-810-freeze .reel{filter:drop-shadow(0 0 13px rgba(201,133,255,.7));}
