@@ -18,7 +18,7 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.275,jackpot:0.90,setup:0.30}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:0.0405}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
 const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
@@ -84,9 +84,11 @@ function playJackpotBounce(){
 function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
-const prealertSound=new Audio("prealert.mp3");
+// iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
+const prealertSound=new Audio("prealert-quiet-v76.mp3");
 prealertSound.preload="auto";
-prealertSound.volume=0.01008; // Ver.72: 30% lower than Ver.71 (0.0144 * 0.70).
+prealertSound.volume=1;
+prealertSound.load();
 let pendingPrealerts=0;
 let prealertEnabled=true;
 let prealertTarget=0.40;
@@ -102,12 +104,28 @@ function prealertFor(hit){
  const signalOnMiss=signalOnHit*p*(1-q)/(q*(1-p));
  return Math.random()<(hit?signalOnHit:signalOnMiss);
 }
+// Pre-alert must never be silently discarded just because audio decoding is pending.
+// The GainNode controls volume on iOS, where HTMLAudioElement.volume is unreliable.
+let prealertPlayToken=0;
 function playPrealert(){
  if(!sound||!prealertEnabled)return;
+ ++prealertPlayToken;
+ // Start the already preloaded, physically quiet MP3 directly. No WebAudio
+ // decoding/resume wait, which could silently block on iPhone Chrome.
  try{
-  prealertSound.pause();prealertSound.currentTime=0;
-  prealertSound.play().catch(err=>console.warn("先バレ音を再生できませんでした",err));
- }catch(err){console.warn("先バレ音エラー",err);}
+  prealertSound.pause();
+  prealertSound.currentTime=0;
+  const attempt=prealertSound.play();
+  if(attempt&&typeof attempt.catch==="function"){
+   attempt.catch(err=>{
+    console.warn("先バレ音の再生に失敗",err);
+    // A second fresh audio instance avoids a stuck/errored media element.
+    const retry=new Audio("prealert-quiet-v76.mp3");
+    retry.volume=1;
+    retry.play().catch(e=>console.warn("先バレ再試行失敗",e));
+  });
+  }
+ }catch(err){console.warn("先バレ音声エラー",err);}
 }
 // BGM: two independent audio decks for gap-free overlapping transitions.
 // Fade-out near the end while fading in the next playback, at a quiet volume.
@@ -440,7 +458,7 @@ async function showFinal(out,ms){
 
 async function animation(out){await showFinal(out,950);}
 async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);stats();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
-function start(){if(busy)return;unlockEffects();prealertEnabled=$("prealertEnabled").checked;
+function start(){if(busy)return;unlockEffects();prealertSound.load();prealertEnabled=$("prealertEnabled").checked;
  prealertTarget=Number($("prealertRate").value);const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();pendingPrealerts=0;ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();}
 function fast(){if(!active||busy)return;pendingPrealerts=0;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();busy=false;controls();}
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
@@ -582,5 +600,9 @@ ui.spin.onclick=async function(event){
 $("prealertEnabled").addEventListener("change",()=>{
  prealertEnabled=$("prealertEnabled").checked;
  prealertTarget=Number($("prealertRate").value);
- if(!prealertEnabled){pendingPrealerts=0;prealertSound.pause();prealertSound.currentTime=0;}
+ if(!prealertEnabled){pendingPrealerts=0;prealertPlayToken++;prealertSound.pause();prealertSound.currentTime=0;}
 });
+
+// Pre-decode the short alert as early as possible. Playback still starts only
+// after an explicit user gesture unlocks the AudioContext on iPhone.
+window.addEventListener("load",()=>{try{unlockEffects();}catch(e){}},{once:true});
