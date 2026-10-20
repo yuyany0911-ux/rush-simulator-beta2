@@ -85,7 +85,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 // iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
-const prealertSound=new Audio("prealert-quiet-v79.mp3");
+const prealertSound=new Audio("prealert-quiet-v80.mp3");
 prealertSound.preload="auto";
 prealertSound.volume=1;
 prealertSound.load();
@@ -120,7 +120,7 @@ function playPrealert(){
    attempt.catch(err=>{
     console.warn("先バレ音の再生に失敗",err);
     // A second fresh audio instance avoids a stuck/errored media element.
-    const retry=new Audio("prealert-quiet-v79.mp3");
+    const retry=new Audio("prealert-quiet-v80.mp3");
     retry.volume=1;
     retry.play().catch(e=>console.warn("先バレ再試行失敗",e));
   });
