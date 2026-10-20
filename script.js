@@ -86,7 +86,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 const prealertSound=new Audio("prealert.mp3");
 prealertSound.preload="auto";
-prealertSound.volume=0.018; // Ver.47: half of Ver.46 amplitude (~ -6 dB).
+prealertSound.volume=0.0144; // Ver.71: previous level reduced by 20%. // Ver.47: half of Ver.46 amplitude (~ -6 dB).
 let pendingPrealerts=0;
 let prealertEnabled=true;
 let prealertTarget=0.40;
