@@ -94,7 +94,7 @@ function playPrealert(){
 // BGM: two independent audio decks for gap-free overlapping transitions.
 // Fade-out near the end while fading in the next playback, at a quiet volume.
 const bgmSource="rush-bgm.mp3";
-const bgmLevel=0.21; // BGM: 18% -> 21%.
+const bgmLevel=0.1785; // Ver.68: previous 0.21 x 0.85 (15% quieter).
 const bgmOverlap=4.0;
 let bgmEnabled=true, bgmActive=false, bgmPaused=false, bgmPauseAt=0, bgmDeck=null, bgmNext=null, bgmFadeStart=0, bgmRaf=0;
 const bgmPlayers=[new Audio(bgmSource),new Audio(bgmSource)];

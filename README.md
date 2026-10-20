@@ -103,3 +103,6 @@ Ver.65: setup effect volume 0.45 -> 0.30; symbols 10% smaller without changing r
 ## Ver.67
 - 大当たり効果音を従来の65%から84.5%へ（従来比1.3倍）。Web AudioとHTMLAudio両方に反映。
 - BGMループ等のVer.66の挙動は変更なし。
+
+
+Ver.68: RUSH BGM 21% → 17.85% (-15% relative); other sounds unchanged.
