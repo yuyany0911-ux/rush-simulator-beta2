@@ -93,3 +93,13 @@ Ver.64: New 0-9 transparent metallic WebP symbols and user-provided background v
 
 
 Ver.65: setup effect volume 0.45 -> 0.30; symbols 10% smaller without changing reel dimensions.
+
+
+## Ver.66
+- 先バレ音量を従来の75%（0.03 → 0.0225）に変更。
+- BGM再生終了イベントと低頻度監視でiPhoneのループ停止を回復。
+- BGM ON/OFF操作で停止後、次回の回転開始時に再生を再開。
+
+## Ver.67
+- 大当たり効果音を従来の65%から84.5%へ（従来比1.3倍）。Web AudioとHTMLAudio両方に反映。
+- BGMループ等のVer.66の挙動は変更なし。

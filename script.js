@@ -18,7 +18,7 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.22,jackpot:0.65,setup:0.30}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.22,jackpot:0.845,setup:0.30}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
 const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
@@ -68,7 +68,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 const prealertSound=new Audio("prealert.mp3");
 prealertSound.preload="auto";
-prealertSound.volume=0.03; // Ver.47: half of Ver.46 amplitude (~ -6 dB).
+prealertSound.volume=0.0225; // Ver.47: half of Ver.46 amplitude (~ -6 dB).
 let pendingPrealerts=0;
 let prealertEnabled=true;
 let prealertTarget=0.40;
@@ -157,6 +157,41 @@ function bgmTick(now){
  }
  bgmRaf=requestAnimationFrame(bgmTick);
 }
+
+// Ver.66: event-driven fallback for iOS Chrome/WebKit, where requestAnimationFrame
+// may be throttled and media can reach its end between animation frames.
+// Keep the original crossfade; never require toggling BGM OFF/ON to restart it.
+function bgmRecover(){
+ if(!bgmEnabled||!bgmActive||bgmPaused||!bgmDeck)return;
+ const deck=bgmDeck;
+ if(deck.ended){
+  if(bgmNext && !bgmNext.ended){
+   deck.pause();deck.volume=0;
+   bgmDeck=bgmNext;bgmNext=null;
+   bgmDeck.volume=bgmLevel;
+   if(bgmDeck.paused)bgmPlay(bgmDeck);
+  }else{
+   bgmNext=null;
+   try{deck.currentTime=0;}catch{}
+   deck.volume=bgmLevel;
+   bgmPlay(deck);
+  }
+ }else if(deck.paused && !bgmNext){
+  // An unexpected media pause must not permanently silence an active RUSH.
+  bgmPlay(deck);
+ }
+}
+for(const player of bgmPlayers){
+ player.addEventListener('ended',bgmRecover);
+ player.addEventListener('timeupdate',()=>{
+  if(bgmActive&&!bgmPaused && player===bgmDeck){
+   // A timeupdate event still arrives on many devices when RAF is throttled.
+   if(player.ended)bgmRecover();
+  }
+ });
+}
+// Low-frequency watchdog: only checks media state, no extra drawing or decoding.
+setInterval(bgmRecover,750);
 
 let reelAnimations=[];
 async function spinReels(symbols, duration){
@@ -495,7 +530,7 @@ document.addEventListener("fullscreenchange",setFullscreenLabel);
 $("bgmToggle").onclick=()=>{
  bgmEnabled=!bgmEnabled;
  $("bgmToggle").textContent=`BGM: ${bgmEnabled?"ON":"OFF"}`;
- if(!bgmEnabled)bgmStop();else if(active&&spinsDone>0){if(autoRunning||busy)bgmResume();else bgmPause();}
+ if(!bgmEnabled)bgmStop();else if(active&&spinsDone>0&&(autoRunning||busy))bgmResume();
 };
 
 // V33: Video and music start together on the FIRST reel spin, not RUSH START.
