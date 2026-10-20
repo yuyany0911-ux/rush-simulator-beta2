@@ -420,10 +420,13 @@ function updateHud(){
 function stats(){updateHud();ui.chain.textContent=chain;ui.total.innerHTML=total.toLocaleString()+" <em>玉</em>";ui.remain.textContent=active?remaining:"---";}
 function payout(){const x=Math.random()*100;let sum=0;for(const [balls,p] of spec.rows){sum+=p;if(x<sum)return balls;}return spec.rows.at(-1)[0];}
 function updateBest(){let best={balls:0,chain:0};try{best=JSON.parse(localStorage.getItem("rushBestClassic"))||best}catch{};if(total>best.balls)best.balls=total;if(chain>best.chain)best.chain=chain;try{localStorage.setItem("rushBestClassic",JSON.stringify(best))}catch{}ui.best.textContent=`${best.balls.toLocaleString()}玉 / ${best.chain}連`;}
-function end(){pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}玉`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}玉</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
+function end(){$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}玉`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}玉</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
 function draw(){
  if(!holdQueue.length)refill();
  const hold=holdQueue.shift()||newHold();
+ // Active hold warning: 80% independent cue or >=70% color reliability.
+ const confidence=hold.haptic?.80:({blue:.10,green:.30,purple:.60,red:.80,gold:.90,rainbow:.98}[hold.color]||0);
+ $("screen").querySelector(".rush-bottom-counter")?.classList.toggle("high-confidence-active",confidence>=.70);
  remaining--;spinsDone++;roundSpins++;
  if(hold.hit){chain++;total+=hold.balls;const hitAt=roundSpins;roundSpins=0;remaining=spec.s+spec.e;refill();return {hit:true,balls:hold.balls,hitAt,color:hold.color};}
  refill();return {hit:false,color:hold.color};
@@ -478,10 +481,10 @@ async function showFinal(out,ms){
 }
 
 async function animation(out){await showFinal(out,950);}
-async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);stats();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
-function start(){if(busy)return;unlockEffects();prealertSound.load();prealertEnabled=$("prealertEnabled").checked;
+async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");stats();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
+function start(){$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(busy)return;unlockEffects();prealertSound.load();prealertEnabled=$("prealertEnabled").checked;
  prealertTarget=Number($("prealertRate").value);const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();pendingPrealerts=0;ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();}
-function fast(){if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
+function fast(){$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
 function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>300)box.lastChild.remove();}
 // Fast path: cap each ordinary spin to ~300ms including visual updates.
@@ -547,7 +550,7 @@ ui.start.onclick=start;ui.spin.onclick=step;ui.auto.onclick=autoPlay;$("instant"
 $("backSettings").onclick=()=>{
  if(busy)return;
  autoRunning=false;autoToken++;
- stopRushVideo();bgmStop();active=false;holdQueue=[];pendingPrealerts=0;controls();
+ stopRushVideo();bgmStop();$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");active=false;holdQueue=[];pendingPrealerts=0;controls();
  $("appRoot").classList.replace("play-mode","setup-mode");
  exitRushFullscreen();
  window.scrollTo({top:0,behavior:"instant"});
