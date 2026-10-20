@@ -18,7 +18,7 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.22,jackpot:0.845,setup:0.30}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.275,jackpot:0.90,setup:0.30}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
 const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
@@ -63,12 +63,30 @@ function playEffect(key){
 }
 function playStopSound(){playEffect("stop");}
 function playJackpotSound(){playEffect("jackpot");}
+// Animate the three stopped reels together. Web Animations avoids changing the
+// track transform used by the vertical-spin renderer (and works on iOS Chrome).
+function playJackpotBounce(){
+ const reels=[1,2,3].map(i=>$("reel"+i));
+ for(const reel of reels){
+  try{
+   reel.getAnimations().filter(a=>a.id==="jackpot-bounce").forEach(a=>a.cancel());
+   const anim=reel.animate([
+    {transform:"translateY(0)"},
+    {transform:"translateY(-11px)",offset:.27},
+    {transform:"translateY(7px)",offset:.62},
+    {transform:"translateY(0)"}
+   ],{duration:360,easing:"ease-out",iterations:1});
+   anim.id="jackpot-bounce";
+  }catch(e){console.warn("Jackpot bounce unavailable",e);}
+ }
+}
+
 function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 const prealertSound=new Audio("prealert.mp3");
 prealertSound.preload="auto";
-prealertSound.volume=0.0225; // Ver.47: half of Ver.46 amplitude (~ -6 dB).
+prealertSound.volume=0.018; // Ver.47: half of Ver.46 amplitude (~ -6 dB).
 let pendingPrealerts=0;
 let prealertEnabled=true;
 let prealertTarget=0.40;
@@ -415,7 +433,7 @@ async function showFinal(out,ms){
  ui.message.textContent=out.hit?"BONUS":"NEXT";
  ui.sub.textContent=out.hit?`+${out.balls.toLocaleString()}玉 / ${chain}連`:`ハズレ / ST残り${remaining}回転`;
  if(out.hit){
-  ui.flash.classList.remove("on");void ui.flash.offsetWidth;ui.flash.classList.add("on");playJackpotSound();
+  ui.flash.classList.remove("on");void ui.flash.offsetWidth;ui.flash.classList.add("on");if(!out.special810)playJackpotBounce();playJackpotSound();
  }
  await wait(out.hit?500:160);
 }
@@ -447,7 +465,7 @@ async function showUltraFast(out){
   ui.digits.classList.remove("special-810-freeze");
  }
  ui.digits.classList.toggle("win",out.hit);
- if(out.hit){ui.flash.classList.remove("on");void ui.flash.offsetWidth;ui.flash.classList.add("on");playJackpotSound();}
+ if(out.hit){ui.flash.classList.remove("on");void ui.flash.offsetWidth;ui.flash.classList.add("on");if(!out.special810)playJackpotBounce();playJackpotSound();}
  // Fast-mode holds are redrawn without 1.2s sequential animation.
  renderHolds();
  if(pendingPrealerts>0){pendingPrealerts=0;if(prealertEnabled)playPrealert();}

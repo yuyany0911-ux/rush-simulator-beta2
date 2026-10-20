@@ -106,3 +106,16 @@ Ver.65: setup effect volume 0.45 -> 0.30; symbols 10% smaller without changing r
 
 
 Ver.68: RUSH BGM 21% → 17.85% (-15% relative); other sounds unchanged.
+
+
+## Ver.69
+- 先バレ音量をVer.68比80%（0.0225→0.018）に調整。
+- 大当たり効果音を90%（0.845→0.90）に変更。
+- 通常ゾロ目大当たり時、停止後に図柄3つが上下に軽く弾む約0.36秒の演出を追加。
+- 特殊810当たりでは上下モーションなし。1秒フリーズは維持。
+- 図柄回転用transformと干渉しないようreel要素をWeb Animationsで動かす。
+
+
+## Ver.70
+- リール停止音を 0.22 → 0.275（従来比25%増）に調整。
+- それ以外の音量や演出は変更なし。
