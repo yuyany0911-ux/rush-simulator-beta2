@@ -1,7 +1,7 @@
 "use strict";
 const $=id=>document.getElementById(id);
 const ui={denom:$("denom"),spins:$("spins"),payouts:$("payouts"),specInfo:$("specInfo"),error:$("error"),start:$("start"),spin:$("spin"),auto:$("auto"),sound:$("sound"),chain:$("chain"),total:$("total"),remain:$("remain"),mode:$("mode"),message:$("message"),sub:$("submessage"),digits:$("screen").querySelector(".digits"),flash:$("flash"),result:$("result"),best:$("best")};
-let spec=null,remaining=0,chain=0,total=0,busy=false,active=false,sound=true,audio=null,autoRunning=false,autoToken=0,spinsDone=0,roundSpins=0,holdQueue=[];
+let spec=null,remaining=0,chain=0,total=0,busy=false,active=false,sound=true,audio=null,autoRunning=false,autoToken=0,spinsDone=0,roundSpins=0,holdQueue=[],instantSimulating=false;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const rand=n=>Math.floor(Math.random()*n);
 function setSymbolStyle(element,value){
@@ -85,7 +85,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 // iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
-const prealertSound=new Audio("prealert-quiet-v78.mp3");
+const prealertSound=new Audio("prealert-quiet-v79.mp3");
 prealertSound.preload="auto";
 prealertSound.volume=1;
 prealertSound.load();
@@ -120,7 +120,7 @@ function playPrealert(){
    attempt.catch(err=>{
     console.warn("先バレ音の再生に失敗",err);
     // A second fresh audio instance avoids a stuck/errored media element.
-    const retry=new Audio("prealert-quiet-v78.mp3");
+    const retry=new Audio("prealert-quiet-v79.mp3");
     retry.volume=1;
     retry.play().catch(e=>console.warn("先バレ再試行失敗",e));
   });
@@ -299,15 +299,36 @@ function pickColor(hit){
  for(let i=0;i<holdColors.length;i++){r-=(hit?holdColors[i][2]:miss[i])*scale;if(r<0)return holdColors[i][0];}
  return "white";
 }
+// Independent 80%-reliability haptic cue, unrelated to hold color.
+// P(cue|hit)=0.08; P(cue|miss) is chosen so P(hit|cue)=0.8.
+function highConfidenceCue(hit){
+ const p=1/spec.n;
+ const onHit=.08;
+ const onMiss=p>=1?0:(onHit*p*.20)/(.80*(1-p));
+ return Math.random()<(hit?onHit:Math.min(1,onMiss));
+}
+let lastHapticAt=0;
+function triggerHighConfidenceHaptic(){
+ // Avoid a queue of shake effects during 0.3-second auto spins.
+ const now=performance.now();
+ if(now-lastHapticAt<500)return;
+ lastHapticAt=now;
+ try{if(typeof navigator.vibrate==="function")navigator.vibrate([90,45,120]);}catch(e){}
+ const target=$("screen");
+ if(target && typeof target.animate==="function"){
+  target.animate([{transform:"translateX(0)"},{transform:"translateX(-4px)"},{transform:"translateX(4px)"},{transform:"translateX(-3px)"},{transform:"translateX(3px)"},{transform:"translateX(0)"}],{duration:320,easing:"ease-out"});
+ }
+}
 function newHold(){
  const hit=Math.random()<1/spec.n;
- return {hit,balls:hit?payout():0,color:pickColor(hit),prealert:prealertFor(hit)};
+ return {hit,balls:hit?payout():0,color:pickColor(hit),prealert:prealertFor(hit),haptic:highConfidenceCue(hit)};
 }
 function refill(){
  if(!active)return;
  while(holdQueue.length<Math.min(5,remaining)){
   const hold=newHold();holdQueue.push(hold);
   if(prealertEnabled&&hold.prealert)pendingPrealerts++;
+  if(hold.haptic && spinsDone>0 && !instantSimulating)triggerHighConfidenceHaptic();
  }
 }
 const holdImageMap={white:"hold-white.png",blue:"hold-blue.png",green:"hold-green.png",purple:"hold-purple.png",red:"hold-red.png",gold:"hold-gold.png",rainbow:"hold-rainbow.png"};
@@ -460,7 +481,7 @@ async function animation(out){await showFinal(out,950);}
 async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);stats();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
 function start(){if(busy)return;unlockEffects();prealertSound.load();prealertEnabled=$("prealertEnabled").checked;
  prealertTarget=Number($("prealertRate").value);const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();pendingPrealerts=0;ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();}
-function fast(){if(!active||busy)return;pendingPrealerts=0;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();busy=false;controls();}
+function fast(){if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
 function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>300)box.lastChild.remove();}
 // Fast path: cap each ordinary spin to ~300ms including visual updates.
