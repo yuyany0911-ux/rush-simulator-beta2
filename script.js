@@ -85,7 +85,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 // iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
-const prealertSound=new Audio("prealert-quiet-v77.mp3");
+const prealertSound=new Audio("prealert-quiet-v78.mp3");
 prealertSound.preload="auto";
 prealertSound.volume=1;
 prealertSound.load();
@@ -120,7 +120,7 @@ function playPrealert(){
    attempt.catch(err=>{
     console.warn("先バレ音の再生に失敗",err);
     // A second fresh audio instance avoids a stuck/errored media element.
-    const retry=new Audio("prealert-quiet-v77.mp3");
+    const retry=new Audio("prealert-quiet-v78.mp3");
     retry.volume=1;
     retry.play().catch(e=>console.warn("先バレ再試行失敗",e));
   });
@@ -130,7 +130,7 @@ function playPrealert(){
 // BGM: two independent audio decks for gap-free overlapping transitions.
 // Fade-out near the end while fading in the next playback, at a quiet volume.
 const bgmSource="rush-bgm.mp3";
-const bgmLevel=0.1785; // Ver.68: previous 0.21 x 0.85 (15% quieter).
+const bgmLevel=0.151725; // Ver.68: previous 0.21 x 0.85 (15% quieter).
 const bgmOverlap=4.0;
 let bgmEnabled=true, bgmActive=false, bgmPaused=false, bgmPauseAt=0, bgmDeck=null, bgmNext=null, bgmFadeStart=0, bgmRaf=0;
 const bgmPlayers=[new Audio(bgmSource),new Audio(bgmSource)];
