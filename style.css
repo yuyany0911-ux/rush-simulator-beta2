@@ -959,3 +959,237 @@ body.rush-immersive #appRoot.play-mode .theater-bar button{
 }
 #screen .digits.reel-bank.special-810-freeze .reel .reel-track{animation:none!important;}
 #screen .digits.reel-bank.special-810-freeze .reel{filter:drop-shadow(0 0 13px rgba(201,133,255,.7));}
+
+/* Ver.54: lower the hold row slightly, retaining Ver.50 sizes. */
+#appRoot.play-mode #screen .rush-bottom-holds{bottom:1px!important;}
+@media(max-width:650px){#appRoot.play-mode #screen .rush-bottom-holds{bottom:0px!important;}}
+
+/* Ver.56: ONLY waiting holds show the tinted, transparent face image.
+   Active/consuming hold retains the Ver.55 presentation. */
+#appRoot.play-mode #screen #holdLamps .hold-orb.waiting-face{
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ clip-path:none!important;filter:none!important;overflow:visible!important;
+}
+#appRoot.play-mode #screen #holdLamps .hold-orb.waiting-face::before,
+#appRoot.play-mode #screen #holdLamps .hold-orb.waiting-face::after{content:none!important;display:none!important;}
+#appRoot.play-mode #screen #holdLamps .hold-orb.waiting-face .hold-face-img{
+ display:block!important;width:100%!important;height:100%!important;
+ object-fit:contain!important;filter:none!important;opacity:1!important;
+ background:transparent!important;border:0!important;box-shadow:none!important;
+ pointer-events:none;user-select:none;
+}
+
+/* Ver.57: the active hold retains the previous artwork; waiting holds use face-only tints.
+   Disable inherited pseudo-elements to avoid double-rendering and colored backdrops. */
+#appRoot.play-mode #screen #holdLamps .hold-orb.next::before,
+#appRoot.play-mode #screen #holdLamps .hold-orb.next::after{
+ content:none!important;display:none!important;
+}
+#appRoot.play-mode #screen #holdLamps .hold-orb.next .hold-face-img{
+ display:block!important;width:100%!important;height:100%!important;
+ object-fit:contain!important;filter:none!important;
+ background:transparent!important;box-shadow:none!important;
+}
+
+/* Ver.58: small waiting holds and a prominent current hold. */
+#appRoot.play-mode #screen #holdLamps{gap:3px!important;align-items:center!important;justify-content:center!important;}
+#appRoot.play-mode #screen #holdLamps .hold-orb:not(.next){
+ width:clamp(29px,8.3vw,37px)!important;height:clamp(29px,8.3vw,37px)!important;
+ flex:0 0 clamp(29px,8.3vw,37px)!important;
+ animation:none!important;filter:none!important;box-shadow:none!important;
+}
+#appRoot.play-mode #screen #holdLamps .hold-orb.next:not(.consuming){
+ width:clamp(62px,17vw,76px)!important;height:clamp(62px,17vw,76px)!important;
+ flex:0 0 clamp(62px,17vw,76px)!important;
+ animation:none!important;filter:none!important;box-shadow:none!important;
+ outline:0!important;
+}
+#appRoot.play-mode #screen #holdLamps .hold-face-img[hidden]{display:none!important;}
+#appRoot.play-mode #screen #holdLamps .hold-face-img{transform:translateZ(0);}
+@media(max-width:370px){
+ #appRoot.play-mode #screen #holdLamps{gap:1px!important;}
+ #appRoot.play-mode #screen #holdLamps .hold-orb:not(.next){width:29px!important;height:29px!important;flex-basis:29px!important;}
+ #appRoot.play-mode #screen #holdLamps .hold-orb.next:not(.consuming){width:62px!important;height:62px!important;flex-basis:62px!important;}
+}
+
+/* Ver.59: original beveled pachinko symbols, pre-cropped and optimized WebP.
+   Only one 20-40KB image per glyph; no runtime image processing. */
+#screen .reel .reel-track > span.symbol-art,
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art {
+ color:transparent!important; -webkit-text-fill-color:transparent!important;
+ text-shadow:none!important; filter:none;
+ background-repeat:no-repeat!important;
+ background-position:center center!important;
+ background-size:contain!important;
+ font-size:0!important;
+}
+#screen .reel .reel-track > span.symbol-art[data-symbol="0"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="0"] {background-image:url("symbol-v64-0.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="1"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="1"] {background-image:url("symbol-v64-1.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="2"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="2"] {background-image:url("symbol-v64-2.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="3"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="3"] {background-image:url("symbol-v64-3.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="4"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="4"] {background-image:url("symbol-v64-4.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="5"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="5"] {background-image:url("symbol-v64-5.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="6"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="6"] {background-image:url("symbol-v64-6.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="7"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="7"] {background-image:url("symbol-v64-7.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="8"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="8"] {background-image:url("symbol-v64-8.webp")!important;}
+#screen .reel .reel-track > span.symbol-art[data-symbol="9"],
+#appRoot.play-mode #screen .reel .reel-track > span.symbol-art[data-symbol="9"] {background-image:url("symbol-v64-9.webp")!important;}
+
+
+/* Ver.60 — full-width safe, taller pachinko symbols.
+   Reels share available horizontal space, with no overflow at 320–400px.
+   Art is stretched vertically (not cropped), preserving the entire outline. */
+#screen .digits.reel-bank,
+#appRoot.play-mode #screen .digits.reel-bank,
+#machine:fullscreen #screen .digits.reel-bank{
+  width:calc(100% - 14px)!important;
+  max-width:620px!important;
+  box-sizing:border-box!important;
+  gap:clamp(2px,1.2vw,8px)!important;
+  overflow:visible!important;
+}
+#screen .digits.reel-bank .reel,
+#appRoot.play-mode #screen .digits.reel-bank .reel,
+#machine:fullscreen #screen .digits.reel-bank .reel{
+  width:calc((100% - 16px) / 3)!important;
+  max-width:196px!important;
+  min-width:0!important;
+  flex:1 1 0!important;
+  box-sizing:border-box!important;
+  --reel-height:clamp(185px,58vw,245px)!important;
+  height:var(--reel-height)!important;
+  overflow:hidden!important;
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+}
+#screen .digits.reel-bank .reel .reel-track>span.symbol-art,
+#appRoot.play-mode #screen .digits.reel-bank .reel .reel-track>span.symbol-art{
+  width:100%!important;
+  height:var(--reel-height)!important;
+  min-height:var(--reel-height)!important;
+  box-sizing:border-box!important;
+  background-size:100% 93%!important;
+  background-position:center!important;
+  background-repeat:no-repeat!important;
+}
+#screen .digits.reel-bank .reel::before,
+#screen .digits.reel-bank .reel::after{
+  opacity:.2!important;
+}
+/* Keep reach emphasis while preventing the center digit from crossing the LCD edge. */
+#screen .digits.reel-bank.reach-focus #reel1{translate:-3px 0!important;scale:.93!important;}
+#screen .digits.reel-bank.reach-focus #reel3{translate:3px 0!important;scale:.93!important;}
+#screen .digits.reel-bank.reach-focus #reel2{scale:1.10!important;z-index:8!important;}
+@media(max-width:420px){
+ #screen .digits.reel-bank,
+ #appRoot.play-mode #screen .digits.reel-bank{width:calc(100% - 10px)!important;gap:2px!important;}
+ #screen .digits.reel-bank .reel,
+ #appRoot.play-mode #screen .digits.reel-bank .reel{
+   width:calc((100% - 4px)/3)!important;
+   --reel-height:clamp(180px,57vw,228px)!important;
+ }
+ #screen .digits.reel-bank.reach-focus #reel2{scale:1.07!important;}
+}
+
+/* Ver.61: taller reel viewport with extra top/bottom clearance.
+   The visible symbol image is inset inside the reel, while animation distance
+   still follows the actual reel height measured by JavaScript. */
+#screen .digits.reel-bank,
+#appRoot.play-mode #screen .digits.reel-bank,
+#machine:fullscreen #screen .digits.reel-bank{
+ top:47%!important;
+}
+#screen .digits.reel-bank .reel,
+#appRoot.play-mode #screen .digits.reel-bank .reel,
+#machine:fullscreen #screen .digits.reel-bank .reel{
+ --reel-height:clamp(230px,69vw,302px)!important;
+ height:var(--reel-height)!important;
+}
+#screen .digits.reel-bank .reel .reel-track>span.symbol-art,
+#appRoot.play-mode #screen .digits.reel-bank .reel .reel-track>span.symbol-art{
+ height:var(--reel-height)!important;
+ min-height:var(--reel-height)!important;
+ background-size:100% 82%!important;
+ background-position:center center!important;
+}
+@media(max-width:420px){
+ #screen .digits.reel-bank,
+ #appRoot.play-mode #screen .digits.reel-bank{top:47%!important;}
+ #screen .digits.reel-bank .reel,
+ #appRoot.play-mode #screen .digits.reel-bank .reel{
+  --reel-height:clamp(225px,69vw,285px)!important;
+ }
+}
+@media(max-width:350px){
+ #screen .digits.reel-bank,
+ #appRoot.play-mode #screen .digits.reel-bank{top:45%!important;}
+ #screen .digits.reel-bank .reel,
+ #appRoot.play-mode #screen .digits.reel-bank .reel{--reel-height:230px!important;}
+}
+
+/* Ver.62 — enlarge vertical clearance and lower the entire reel bank.
+   Spin-only transparency keeps stopped digits crisp and shows the background video. */
+#screen .digits.reel-bank,
+#appRoot.play-mode #screen .digits.reel-bank,
+#machine:fullscreen #screen .digits.reel-bank{
+ top:52%!important;
+}
+#screen .digits.reel-bank .reel,
+#appRoot.play-mode #screen .digits.reel-bank .reel,
+#machine:fullscreen #screen .digits.reel-bank .reel{
+ --reel-height:clamp(250px,75vw,330px)!important;
+ height:var(--reel-height)!important;
+}
+#screen .digits.reel-bank .reel .reel-track>span.symbol-art,
+#appRoot.play-mode #screen .digits.reel-bank .reel .reel-track>span.symbol-art{
+ height:var(--reel-height)!important;
+ min-height:var(--reel-height)!important;
+ background-size:100% 80%!important;
+ background-position:center center!important;
+}
+/* Reduce opacity only while that particular reel is spinning. */
+#screen .digits.reel-bank .reel.spinning .reel-track,
+#appRoot.play-mode #screen .digits.reel-bank .reel.spinning .reel-track{
+ opacity:.40!important;
+}
+#screen .digits.reel-bank .reel:not(.spinning) .reel-track,
+#appRoot.play-mode #screen .digits.reel-bank .reel:not(.spinning) .reel-track{
+ opacity:1!important;
+}
+@media(max-width:420px){
+ #screen .digits.reel-bank,
+ #appRoot.play-mode #screen .digits.reel-bank{top:52%!important;}
+ #screen .digits.reel-bank .reel,
+ #appRoot.play-mode #screen .digits.reel-bank .reel{
+  --reel-height:clamp(240px,74vw,305px)!important;
+ }
+}
+@media(max-width:350px){
+ #screen .digits.reel-bank,
+ #appRoot.play-mode #screen .digits.reel-bank{top:50%!important;}
+ #screen .digits.reel-bank .reel,
+ #appRoot.play-mode #screen .digits.reel-bank .reel{--reel-height:240px!important;}
+}
+
+/* v64: crisp metallic artwork without heavy GPU effects */
+#screen .reel .reel-track>span.symbol-art,#appRoot.play-mode #screen .reel .reel-track>span.symbol-art{background-size:contain!important;background-position:center!important;text-shadow:none!important;}
+
+/* Ver.65: shrink artwork only, not the reel track/viewport.
+   This preserves vertical spin distance, stop order and reach animations. */
+#screen .digits.reel-bank .reel .reel-track > span.symbol-art,
+#appRoot.play-mode #screen .digits.reel-bank .reel .reel-track > span.symbol-art,
+#machine:fullscreen #screen .digits.reel-bank .reel .reel-track > span.symbol-art {
+  background-size:90% 90%!important;
+  background-position:center center!important;
+}

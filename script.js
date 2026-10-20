@@ -6,9 +6,11 @@ const wait=ms=>new Promise(r=>setTimeout(r,ms));
 const rand=n=>Math.floor(Math.random()*n);
 function setSymbolStyle(element,value){
  const number=Number(value);
- element.classList.remove("symbol-even","symbol-odd","symbol-zero");
+ element.classList.remove("symbol-even","symbol-odd","symbol-zero","symbol-art");
+ element.removeAttribute("data-symbol");
  if(Number.isInteger(number)&&number>=0&&number<=9){
-  element.classList.add(number===0?"symbol-zero":number%2===0?"symbol-even":"symbol-odd");
+  element.classList.add(number===0?"symbol-zero":number%2===0?"symbol-even":"symbol-odd","symbol-art");
+  element.dataset.symbol=String(number);
  }
 }
 function digits(a){
@@ -16,9 +18,9 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3"},volumes:{stop:0.22,jackpot:0.65}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.22,jackpot:0.65,setup:0.30}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
-const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3")};
+const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
 function playFallback(key){
  const source=effectFallback[key];if(!source)return;
@@ -61,6 +63,7 @@ function playEffect(key){
 }
 function playStopSound(){playEffect("stop");}
 function playJackpotSound(){playEffect("jackpot");}
+function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 const prealertSound=new Audio("prealert.mp3");
@@ -237,11 +240,12 @@ function refill(){
  }
 }
 const holdImageMap={white:"hold-white.png",blue:"hold-blue.png",green:"hold-green.png",purple:"hold-purple.png",red:"hold-red.png",gold:"hold-gold.png",rainbow:"hold-rainbow.png"};
-function attachHoldFace(orb,color){
+const activeHoldImageMap={white:"active-white.png",blue:"active-blue.png",green:"active-green.png",purple:"active-purple.png",red:"active-red.png",gold:"active-gold.png",rainbow:"active-rainbow.png"};
+function attachHoldFace(orb,color,isActive=false){
  if(color==="empty")return;
  const face=document.createElement("img");
  face.className="hold-face-img";
- face.src=holdImageMap[color]||holdImageMap.white;
+ face.src=(isActive?activeHoldImageMap:holdImageMap)[color]||holdImageMap.white;
  face.alt="";
  face.draggable=false;
  orb.appendChild(face);
@@ -251,9 +255,9 @@ function renderHolds(){
  for(let i=0;i<5;i++){
   const hold=holdQueue[i];
   const orb=document.createElement("span");
-  orb.className="hold-orb "+(hold?.color||"empty")+(i===0&&hold?" next":"");
+  orb.className="hold-orb "+(hold?.color||"empty")+(i===0&&hold?" next":"")+(hold&&i!==0?" waiting-face":"");
   orb.title=hold?`保留 ${i+1}：${hold.color}`:"空き";
-  attachHoldFace(orb,hold?.color||"empty");
+  if(hold)attachHoldFace(orb,hold.color,i===0);
   box.appendChild(orb);
  }
  $("holdNote").textContent=active?"右から補充 / 左から消化":"STANDBY";
@@ -296,7 +300,10 @@ async function settleHolds(out){
   orb.className="hold-orb "+(hold?.color||"empty");
   orb.style.opacity="0";
   orb.style.transformOrigin="center center";
-  attachHoldFace(orb,hold?.color||"empty");
+  if(hold){
+   orb.classList.add(index===0?"next":"waiting-face");
+   attachHoldFace(orb,hold.color,index===0);
+  }
   box.appendChild(orb);
   fresh.push(orb);
  }
@@ -381,10 +388,36 @@ async function showFinal(out,ms){
 async function animation(out){await showFinal(out,950);}
 async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);stats();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
 function start(){if(busy)return;unlockEffects();prealertEnabled=$("prealertEnabled").checked;
- prealertTarget=Number($("prealertRate").value);const v=parse();preview();if(!v)return;stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();pendingPrealerts=0;ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();note(550,.2);}
+ prealertTarget=Number($("prealertRate").value);const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();pendingPrealerts=0;ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();}
 function fast(){if(!active||busy)return;pendingPrealerts=0;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();busy=false;controls();}
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
 function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>300)box.lastChild.remove();}
+// Fast path: cap each ordinary spin to ~300ms including visual updates.
+// Avoid multiple concurrent reel RAFs and overlapping hold animations.
+async function showUltraFast(out){
+ ui.digits.classList.remove("win","reach-focus","special-810-freeze");
+ const symbols=finalSymbols(out);
+ // Lightweight vertical motion; three reels settle together to meet the speed budget.
+ for(let i=0;i<3;i++)$("reel"+(i+1)).classList.add("spinning");
+ ui.digits.style.transition="filter 100ms linear";
+ ui.digits.style.filter="blur(3px)";
+ await wait(110);
+ digits(symbols);
+ for(let i=0;i<3;i++)$("reel"+(i+1)).classList.remove("spinning");
+ ui.digits.style.filter="";
+ playStopSound();
+ if(out.special810){
+  ui.digits.classList.add("special-810-freeze");
+  await wait(1000); // 810 remains the deliberately longer special effect.
+  ui.digits.classList.remove("special-810-freeze");
+ }
+ ui.digits.classList.toggle("win",out.hit);
+ if(out.hit){ui.flash.classList.remove("on");void ui.flash.offsetWidth;ui.flash.classList.add("on");playJackpotSound();}
+ // Fast-mode holds are redrawn without 1.2s sequential animation.
+ renderHolds();
+ if(pendingPrealerts>0){pendingPrealerts=0;if(prealertEnabled)playPrealert();}
+ await wait(190);
+}
 async function autoPlay(){
  if(autoRunning){autoRunning=false;autoToken++;pauseRushMedia();controls();return;}
  if(!active||busy)return;
@@ -398,9 +431,13 @@ async function autoPlay(){
    const out=draw();
    logSpin(out);
    const speed=Number($("speed").value);
-   await showFinal(out,Math.max(700,speed));
-   // The consumed hold fades AFTER the symbols stop; others slide left.
-   await settleHolds(out);
+   if(speed===300){
+    await showUltraFast(out);
+   }else{
+    await showFinal(out,Math.max(700,speed));
+    await settleHolds(out);
+   }
+   if(!valid() && active)break;
    stats();
    if(!out.hit&&remaining<=0){end();break;}
   }
