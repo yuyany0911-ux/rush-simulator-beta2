@@ -256,3 +256,6 @@ Ver.104: Five effects have louder, peak-limited audio files; prealert WebAudio n
 30,000: new 三万発オーバー; 40,000: former 30,000 voice; 50,000: 最高っすね. Audio assets normalized and limited. Voices trigger after updated HUD paint. For single large payout crossing multiple thresholds, highest takes priority. 0.3s auto supported; instant simulation stays silent. iPhone hardware playback not tested.
 
 Ver.107: Removed sound preview control; RUSH pre-alert now uses HTMLAudio playback first (same route as working preview), with WebAudio fallback. 99% lottery and milestone voices unchanged. iPhone testing required.
+
+
+Ver.108: independent prealert audio playback; unchanged 99% lottery and all milestone cues. iPhone device verification pending.

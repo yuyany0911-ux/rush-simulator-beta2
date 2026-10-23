@@ -18,7 +18,7 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3",prealert:"prealert-v106.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:1.0}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3",prealert:"prealert-v109.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:1.0}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
 const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
@@ -85,7 +85,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 // iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
-const prealertSound=new Audio("prealert-v106.mp3");
+const prealertSound=new Audio("prealert-v109.mp3");
 prealertSound.preload="auto";
 prealertSound.volume=1;
 prealertSound.load();
@@ -118,29 +118,34 @@ let prealertPlayToken=0;
 let prealertNoticeCount=0;
 // Ver.107: use the same HTMLAudio playback route that worked in the
 // user-gesture test. Keep WebAudio only as a fallback when play() rejects.
+// Ver.108: independent short-lived player for each alert. Avoid a shared
+// HTMLAudio element being reset by subsequent alerts during 0.3s auto-play.
+let lastPrealertAt=0;
+const prealertFallbackPool=Array.from({length:3},()=>{
+ const a=new Audio("prealert-v109.mp3");a.preload="auto";a.load();return a;
+});
+let prealertFallbackIndex=0;
 function playPrealert(){
  if(!prealertEnabled||instantSimulating||!sound||!active)return;
  prealertNotified++;updateCueDiagnostics();
- ++prealertPlayToken;
- const fallback=()=>{
-  const ctx=effectAudio.ctx,buffer=effectAudio.buffers.prealert;
-  if(!ctx||!buffer)return;
-  const playBuffer=()=>{
-   try{
-    const source=ctx.createBufferSource(),gain=ctx.createGain();
-    source.buffer=buffer;gain.gain.value=1;
-    source.connect(gain);gain.connect(ctx.destination);source.start();
-    source.onended=()=>{source.disconnect();gain.disconnect();};
-   }catch(e){console.warn("先バレ再生に失敗",e);}
-  };
-  if(ctx.state==="running")playBuffer();
-  else ctx.resume().then(playBuffer).catch(e=>console.warn("先バレ音声が制限されました",e));
- };
- try{
-  prealertSound.pause();prealertSound.currentTime=0;
-  const result=prealertSound.play();
-  if(result&&result.catch)result.catch(error=>{console.warn("先バレ HTMLAudio 再生失敗",error);fallback();});
- }catch(error){console.warn("先バレ音声再生失敗",error);fallback();}
+ const now=performance.now();
+ if(now-lastPrealertAt<180)return;
+ lastPrealertAt=now;
+ const ctx=effectAudio.ctx,buffer=effectAudio.buffers.prealert;
+ if(ctx&&buffer&&ctx.state==="running"){
+  try{
+   const source=ctx.createBufferSource(),gain=ctx.createGain();
+   source.buffer=buffer;gain.gain.value=1;
+   source.connect(gain);gain.connect(ctx.destination);
+   source.onended=()=>{source.disconnect();gain.disconnect();};
+   source.start(0);return;
+  }catch(e){console.warn("先バレWebAudio失敗",e);}
+ }
+ // Preloaded persistent fallback; avoid new Audio() inside delayed callbacks.
+ const a=prealertFallbackPool[prealertFallbackIndex++%prealertFallbackPool.length];
+ try{a.pause();a.currentTime=0;
+  const promise=a.play();if(promise?.catch)promise.catch(e=>console.warn("先バレ再生拒否",e));
+ }catch(e){console.warn("先バレ再生例外",e);}
 }
 // BGM: two independent audio decks for gap-free overlapping transitions.
 // Fade-out near the end while fading in the next playback, at a quiet volume.
