@@ -18,7 +18,7 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:0.0405}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3",prealert:"prealert-v98-audible.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:0.0405}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
 const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
@@ -85,47 +85,61 @@ function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 // iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
-const prealertSound=new Audio("prealert-quiet-v80.mp3");
+const prealertSound=new Audio("prealert-v98-audible.mp3");
 prealertSound.preload="auto";
 prealertSound.volume=1;
 prealertSound.load();
 let pendingPrealerts=0;
 let prealertEnabled=true;
-let prealertTarget=0.40;
+const prealertTarget=0.99; // ON時は信頼度99%固定
+// Ver.101: one calibrated lottery for all three selected reliability values.
+// Diagnostics count every generated signal independently of audio playback.
+let prealertGenerated=0,prealertNotified=0,specialGenerated=0,specialNotified=0;
 function prealertFor(hit){
  if(!prealertEnabled)return false;
- const p=1/spec.n;
- const q=prealertTarget;
- // Bayes calibration: P(hit | alert) = q while keeping base hit rate p.
- // When p > q, such an alert cannot be calibrated without changing the base draw;
- // no alert is generated in that edge case.
- if(p>q)return false;
- const signalOnHit=0.85;
- const signalOnMiss=signalOnHit*p*(1-q)/(q*(1-p));
- return Math.random()<(hit?signalOnHit:signalOnMiss);
+ const p=1/spec.n, q=Number(prealertTarget);
+ if(!Number.isFinite(q)||q<=0||q>=1||p>q)return false;
+ const onHit=.85;
+ const onMiss=Math.min(1,onHit*p*(1-q)/(q*(1-p)));
+ const result=Math.random()<(hit?onHit:onMiss);
+ if(result)prealertGenerated++;
+ return result;
+}
+function updateCueDiagnostics(){
+ // Diagnostic panel removed from production UI.
 }
 // Pre-alert must never be silently discarded just because audio decoding is pending.
 // The GainNode controls volume on iOS, where HTMLAudioElement.volume is unreliable.
+// Prefer the unlocked WebAudio context for iOS Chrome. The fallback is a
+// physically attenuated MP3, not HTMLMediaElement.volume (ignored on iOS).
+// All reliability settings share the same playback path. A visible indicator
+// makes it possible to distinguish a missed draw from a failed audio output.
 let prealertPlayToken=0;
+let prealertNoticeCount=0;
 function playPrealert(){
- if(!sound||!prealertEnabled)return;
+ if(!prealertEnabled||instantSimulating)return;
+ prealertNotified++;updateCueDiagnostics();
+
+ if(!sound)return;
  ++prealertPlayToken;
- // Start the already preloaded, physically quiet MP3 directly. No WebAudio
- // decoding/resume wait, which could silently block on iPhone Chrome.
+ const ctx=effectAudio.ctx,buffer=effectAudio.buffers.prealert;
+ if(ctx&&buffer&&ctx.state==="running"){
+  try{
+   const source=ctx.createBufferSource(),gain=ctx.createGain();
+   source.buffer=buffer;
+   // Use a real GainNode, never a bare destination connection.
+   gain.gain.value=0.75;
+   source.connect(gain);gain.connect(ctx.destination);source.start(0);
+   source.onended=()=>{source.disconnect();gain.disconnect();};
+   return;
+  }catch(error){console.warn("先バレ WebAudio 再生失敗",error);}
+ }
  try{
-  prealertSound.pause();
-  prealertSound.currentTime=0;
+  // The fallback is a pre-attenuated file for iPhone's unreliable volume property.
+  prealertSound.pause();prealertSound.currentTime=0;
   const attempt=prealertSound.play();
-  if(attempt&&typeof attempt.catch==="function"){
-   attempt.catch(err=>{
-    console.warn("先バレ音の再生に失敗",err);
-    // A second fresh audio instance avoids a stuck/errored media element.
-    const retry=new Audio("prealert-quiet-v80.mp3");
-    retry.volume=1;
-    retry.play().catch(e=>console.warn("先バレ再試行失敗",e));
-  });
-  }
- }catch(err){console.warn("先バレ音声エラー",err);}
+  if(attempt?.catch)attempt.catch(error=>console.warn("先バレ HTMLAudio 再生制限",error));
+ }catch(error){console.warn("先バレ音声再生失敗",error);}
 }
 // BGM: two independent audio decks for gap-free overlapping transitions.
 // Fade-out near the end while fading in the next playback, at a quiet volume.
@@ -285,7 +299,7 @@ async function spinReels(symbols, duration){
 function note(freq=600,duration=.09){if(!sound)return;try{audio??=new (window.AudioContext||window.webkitAudioContext)();const osc=audio.createOscillator(),gain=audio.createGain();osc.type="sine";osc.frequency.value=freq;gain.gain.setValueAtTime(.055,audio.currentTime);gain.gain.exponentialRampToValueAtTime(.001,audio.currentTime+duration);osc.connect(gain).connect(audio.destination);osc.start();osc.stop(audio.currentTime+duration)}catch{}}
 function parse(){const n=Number(ui.denom.value),s=Number(ui.spins.value),e=0,rows=[...ui.payouts.querySelectorAll(".row")].map(row=>[...row.querySelectorAll("input")].map(x=>Number(x.value)));if(!Number.isFinite(n)||n<1||!Number.isInteger(s)||s<1||s>10000||!Number.isInteger(e)||e<0||e>100)return null;if(!rows.length||rows.some(([balls,p])=>!Number.isInteger(balls)||balls<0||!Number.isFinite(p)||p<0)||Math.abs(rows.reduce((a,r)=>a+r[1],0)-100)>.000001)return null;return {n,s,e,rows};}
 function preview(){const v=parse();ui.error.textContent=v?"":"確率・回転数・振り分け（合計100%）を確認してください。";ui.specInfo.textContent=v?`理論継続率：約${((1-Math.pow(1-1/v.n,v.s+v.e))*100).toFixed(2)}% ／ 振り分け合計100%`:"";}
-function controls(){ui.spin.disabled=!active||busy||autoRunning;ui.auto.disabled=!active||busy;ui.auto.textContent=autoRunning?"回転オート STOP":"回転オート START";ui.auto.classList.toggle("running",autoRunning);$("instant").disabled=!active||busy||autoRunning;ui.start.disabled=busy||autoRunning;ui.mode.textContent=active?"RUSH ACTIVE":"STANDBY";}
+function controls(){const replayArea=$("replayArea");if(replayArea){const finished=Boolean(spec)&&!active&&remaining<=0&&document.getElementById("appRoot").classList.contains("play-mode");replayArea.hidden=!finished;}ui.spin.disabled=!active||busy||autoRunning;ui.auto.disabled=!active||busy;ui.auto.textContent=autoRunning?"回転オート STOP":"回転オート START";ui.auto.classList.toggle("running",autoRunning);$("instant").disabled=!active||busy||autoRunning;ui.start.disabled=busy||autoRunning;ui.mode.textContent=active?"RUSH ACTIVE":"STANDBY";}
 // [color, P(hit | color), P(color | hit) before optional global scaling].
 // Bayes: P(color | miss) = P(color | hit) * P(hit) * (1-q) / (q*(1-P(hit))).
 // The same global scale is applied to both hit/miss color weights when needed,
@@ -307,12 +321,98 @@ function highConfidenceCue(hit){
  const onMiss=p>=1?0:(onHit*p*.20)/(.80*(1-p));
  return Math.random()<(hit?onHit:Math.min(1,onMiss));
 }
+// A dedicated, slightly louder file for the special vibrating hold.
+// Play from the user-triggered spin flow, avoiding iOS HTMLAudio volume limitations.
+const specialVoice=new Audio("special-hold-voice-v89.mp3");
+specialVoice.preload="auto";
+function playSpecialVoice(){
+ if(instantSimulating)return;
+ specialNotified++;updateCueDiagnostics();
+ if(!sound)return;
+ try{
+  specialVoice.pause();specialVoice.currentTime=0;
+  const result=specialVoice.play();
+  if(result&&typeof result.catch==="function")result.catch(err=>console.warn("特殊保留ボイス再生失敗",err));
+ }catch(err){console.warn("特殊保留ボイス再生エラー",err);}
+}
+// One-time milestone voice when cumulative payout first reaches 10,000 balls.
+// Keep a separate audio player; this does not change jackpot / pre-alert effects.
+const tenThousandVoice=new Audio("ten-thousand-voice-v91.mp3");
+tenThousandVoice.preload="auto";
+let tenThousandVoicePlayed=false;
+let milestoneVoicePending=false;
+function playTenThousandVoice(){
+ if(tenThousandVoicePlayed||!sound||instantSimulating)return;
+ tenThousandVoicePlayed=true;
+ try{
+  tenThousandVoice.currentTime=0;
+  const result=tenThousandVoice.play();
+  if(result&&typeof result.catch==="function")result.catch(err=>console.warn("10000玉ボイス再生失敗",err));
+ }catch(err){console.warn("10000玉ボイス再生エラー",err);}
+}
+// Ver.95: fire only after the visible cumulative payout has reached 20,000.
+const twentyThousandVoice=new Audio("twenty-thousand-voice-v95.mp3");
+twentyThousandVoice.preload="auto";
+let twentyThousandVoicePlayed=false;
+let twentyThousandVoicePending=false;
+function flushTwentyThousandVoice(){
+ if(!twentyThousandVoicePending)return;
+ twentyThousandVoicePending=false;
+ // The caller updates the visible HUD before scheduling this audio.
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(!active||total<20000||twentyThousandVoicePlayed||!sound||instantSimulating)return;
+  twentyThousandVoicePlayed=true;
+  try{
+   twentyThousandVoice.currentTime=0;
+   const result=twentyThousandVoice.play();
+   if(result&&typeof result.catch==="function")result.catch(err=>console.warn("20000玉ボイス再生失敗",err));
+  }catch(err){console.warn("20000玉ボイス再生エラー",err);}
+ }));
+}
+// Ver.96: play the 30,000-ball voice after the payout HUD has painted.
+const thirtyThousandVoice=new Audio("thirty-thousand-voice-v96.mp3");
+thirtyThousandVoice.preload="auto";
+let thirtyThousandVoicePlayed=false;
+let thirtyThousandVoicePending=false;
+function flushThirtyThousandVoice(){
+ if(!thirtyThousandVoicePending)return;
+ thirtyThousandVoicePending=false;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(!active||total<30000||thirtyThousandVoicePlayed||!sound||instantSimulating)return;
+  thirtyThousandVoicePlayed=true;
+  try{
+   thirtyThousandVoice.currentTime=0;
+   const result=thirtyThousandVoice.play();
+   if(result&&typeof result.catch==="function")result.catch(err=>console.warn("30000玉ボイス再生失敗",err));
+  }catch(err){console.warn("30000玉ボイス再生エラー",err);}
+ }));
+}
+// Play once when the displayed RUSH count first reaches 10.
+const tenChainVoice=new Audio("ten-chain-voice-v93.mp3");
+tenChainVoice.preload="auto";
+let tenChainVoicePlayed=false;
+let tenChainVoicePending=false;
+function flushTenChainVoice(){
+ if(!tenChainVoicePending)return;
+ tenChainVoicePending=false;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(!active||chain<10||tenChainVoicePlayed||!sound||instantSimulating)return;
+  tenChainVoicePlayed=true;
+  try{
+   tenChainVoice.currentTime=0;
+   const attempt=tenChainVoice.play();
+   if(attempt&&typeof attempt.catch==="function")attempt.catch(err=>console.warn("10連ボイス再生失敗",err));
+  }catch(err){console.warn("10連ボイス再生エラー",err);}
+ }));
+}
 let lastHapticAt=0;
 function triggerHighConfidenceHaptic(){
  // Avoid a queue of shake effects during 0.3-second auto spins.
  const now=performance.now();
- if(now-lastHapticAt<500)return;
+ if(now-lastHapticAt<200)return;
  lastHapticAt=now;
+ // Special hold itself has no pre-alert. Other independent holds keep theirs.
+ playSpecialVoice();
  try{if(typeof navigator.vibrate==="function")navigator.vibrate([90,45,120]);}catch(e){}
  const target=$("screen");
  if(target && typeof target.animate==="function"){
@@ -321,23 +421,39 @@ function triggerHighConfidenceHaptic(){
 }
 function newHold(){
  const hit=Math.random()<1/spec.n;
- return {hit,balls:hit?payout():0,color:pickColor(hit),prealert:prealertFor(hit),haptic:highConfidenceCue(hit)};
+ const haptic=highConfidenceCue(hit);
+ if(haptic)specialGenerated++;
+ // Never play ordinary pre-alert for the vibrating special hold.
+ return {hit,balls:hit?payout():0,color:pickColor(hit),prealert:prealertFor(hit),haptic};
 }
+
+// V100: Dispatch exactly once for each *displayed* hold.
+// Do not infer alert state from its color or from a DOM class.
+function notifyVisiblePrealerts(holds){
+ if(!active||instantSimulating||!prealertEnabled)return;
+ const freshAlerts=holds.filter(h=>h&&h.prealert&&!h.prealertPlayed);
+ if(!freshAlerts.length)return;
+ freshAlerts.forEach(h=>{h.prealertPlayed=true;});
+ // Keep audio dispatch after hold render; no on-screen diagnostic banner.
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{if(active)playPrealert();}));
+}
+
 function refill(){
  if(!active)return;
  while(holdQueue.length<Math.min(5,remaining)){
   const hold=newHold();holdQueue.push(hold);
-  if(prealertEnabled&&hold.prealert)pendingPrealerts++;
-  if(hold.haptic && spinsDone>0 && !instantSimulating)triggerHighConfidenceHaptic();
+  // A hold carries its own prealert state until it is actually displayed.
+  if(hold.haptic && !instantSimulating){hold.specialEntrance=true;}
  }
 }
 const holdImageMap={white:"hold-white.png",blue:"hold-blue.png",green:"hold-green.png",purple:"hold-purple.png",red:"hold-red.png",gold:"hold-gold.png",rainbow:"hold-rainbow.png"};
+const specialHoldImageMap={white:"special-hold-white.png",blue:"special-hold-blue.png",green:"special-hold-green.png",purple:"special-hold-purple.png",red:"special-hold-red.png",gold:"special-hold-gold.png",rainbow:"special-hold-rainbow.png"};
 const activeHoldImageMap={white:"active-white.png",blue:"active-blue.png",green:"active-green.png",purple:"active-purple.png",red:"active-red.png",gold:"active-gold.png",rainbow:"active-rainbow.png"};
-function attachHoldFace(orb,color,isActive=false){
+function attachHoldFace(orb,color,isActive=false,isSpecial=false){
  if(color==="empty")return;
  const face=document.createElement("img");
  face.className="hold-face-img";
- face.src=(isActive?activeHoldImageMap:holdImageMap)[color]||holdImageMap.white;
+ face.src=isSpecial?"special-hold-v90.png":(isActive?activeHoldImageMap:holdImageMap)[color]||holdImageMap.white;
  face.alt="";
  face.draggable=false;
  orb.appendChild(face);
@@ -347,9 +463,11 @@ function renderHolds(){
  for(let i=0;i<5;i++){
   const hold=holdQueue[i];
   const orb=document.createElement("span");
-  orb.className="hold-orb "+(hold?.color||"empty")+(i===0&&hold?" next":"")+(hold&&i!==0?" waiting-face":"");
+  orb.className="hold-orb "+(hold?.color||"empty")+(i===0&&hold?" next":"")+(hold&&i!==0?" waiting-face":"")+(hold?.haptic?" special-cue":"")+(hold?.specialEntrance?" special-enter":"")+(hold?.specialMove?" special-move":"");
   orb.title=hold?`保留 ${i+1}：${hold.color}`:"空き";
-  if(hold)attachHoldFace(orb,hold.color,i===0);
+  if(hold)attachHoldFace(orb,hold.color,i===0,!!hold.haptic);
+  if(hold?.specialEntrance)hold.specialEntrance=false;
+  if(hold?.specialMove)hold.specialMove=false;
   box.appendChild(orb);
  }
  $("holdNote").textContent=active?"右から補充 / 左から消化":"STANDBY";
@@ -370,6 +488,12 @@ async function settleHolds(out){
  first.style.visibility="hidden";
  // 2) The remaining holds glide left, while the rightmost new hold grows from its center.
  const before=orbs.slice(orbs.indexOf(first)+1).filter(el=>!el.classList.contains("empty"));
+ // Every surviving special hold shakes after moving one position left.
+ // Do not retrigger the special voice: it is an appearance-only effect.
+ for(let i=0;i<before.length;i++){
+  const movedHold=holdQueue[i];
+  if(movedHold?.haptic)movedHold.specialMove=true;
+ }
  const rects=before.map(el=>el.getBoundingClientRect());
  // Remove the consumed node first so CSS flex naturally reflows to the left.
  first.remove();
@@ -394,7 +518,10 @@ async function settleHolds(out){
   orb.style.transformOrigin="center center";
   if(hold){
    orb.classList.add(index===0?"next":"waiting-face");
-   attachHoldFace(orb,hold.color,index===0);
+   // Preserve the special cue on newly replenished holds (not only on full renders).
+   if(hold.haptic){orb.classList.add("special-cue","special-enter");}
+   attachHoldFace(orb,hold.color,index===0,!!hold.haptic);
+   if(hold.specialEntrance)hold.specialEntrance=false;
   }
   box.appendChild(orb);
   fresh.push(orb);
@@ -408,19 +535,33 @@ async function settleHolds(out){
    {opacity:1,transform:"scale(1)"}
   ],{duration:450,easing:"cubic-bezier(.18,.8,.2,1)",fill:"forwards"});
  });
+ // Dispatch audio after newly appeared holds have been painted.
+ if((fresh.some(el=>el.classList.contains("special-cue"))||holdQueue.slice(before.length).some(h=>h?.prealert&&!h.prealertPlayed)) && !instantSimulating){
+  await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+  if(fresh.some(el=>el.classList.contains("special-cue"))){holdQueue.slice(before.length).filter(h=>h?.haptic).forEach(h=>h.specialVoicePlayed=true);triggerHighConfidenceHaptic();}
+  const alerts=holdQueue.slice(before.length).filter(h=>h?.prealert&&!h.prealertPlayed);
+  if(alerts.length){alerts.forEach(h=>h.prealertPlayed=true);if(fresh.some(el=>el.classList.contains("special-cue")))setTimeout(()=>{if(active)playPrealert();},650);else playPrealert();}
+ }
  await Promise.all([...moves,...growth].map(anim=>anim.finished.catch(()=>{})));
  [...moves,...growth].forEach(anim=>anim.cancel());
  renderHolds();
- if(pendingPrealerts>0){pendingPrealerts=0;if(prealertEnabled)playPrealert();}
 }
 function updateHud(){
  $("hudRemain").textContent=spec?Math.min(remaining,spec.s):"---";
  $("hudChain").textContent=String(chain).padStart(2,"0");$("hudTotal").textContent=total.toLocaleString();renderHolds();
 }
 function stats(){updateHud();ui.chain.textContent=chain;ui.total.innerHTML=total.toLocaleString()+" <em>玉</em>";ui.remain.textContent=active?remaining:"---";}
+function flushMilestoneVoice(){
+ if(!milestoneVoicePending)return;
+ milestoneVoicePending=false;
+ // Paint the updated 10,000+ counter before beginning the milestone audio.
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(active && total>=10000)playTenThousandVoice();
+ }));
+}
 function payout(){const x=Math.random()*100;let sum=0;for(const [balls,p] of spec.rows){sum+=p;if(x<sum)return balls;}return spec.rows.at(-1)[0];}
 function updateBest(){let best={balls:0,chain:0};try{best=JSON.parse(localStorage.getItem("rushBestClassic"))||best}catch{};if(total>best.balls)best.balls=total;if(chain>best.chain)best.chain=chain;try{localStorage.setItem("rushBestClassic",JSON.stringify(best))}catch{}ui.best.textContent=`${best.balls.toLocaleString()}玉 / ${best.chain}連`;}
-function end(){$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}玉`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}玉</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
+function end(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;remaining=0;document.getElementById("replayArea").hidden=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}玉`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}玉</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
 function draw(){
  if(!holdQueue.length)refill();
  const hold=holdQueue.shift()||newHold();
@@ -428,7 +569,7 @@ function draw(){
  const confidence=hold.haptic?.80:({blue:.10,green:.30,purple:.60,red:.80,gold:.90,rainbow:.98}[hold.color]||0);
  $("screen").querySelector(".rush-bottom-counter")?.classList.toggle("high-confidence-active",confidence>=.70);
  remaining--;spinsDone++;roundSpins++;
- if(hold.hit){chain++;total+=hold.balls;const hitAt=roundSpins;roundSpins=0;remaining=spec.s+spec.e;refill();return {hit:true,balls:hold.balls,hitAt,color:hold.color};}
+ if(hold.hit){chain++;if(chain===10){if(instantSimulating)tenChainVoicePlayed=true;else tenChainVoicePending=true;}const previousTotal=total;total+=hold.balls;if(previousTotal<10000&&total>=10000){if(instantSimulating)tenThousandVoicePlayed=true;else milestoneVoicePending=true;}if(previousTotal<20000&&total>=20000){if(instantSimulating)twentyThousandVoicePlayed=true;else twentyThousandVoicePending=true;}if(previousTotal<30000&&total>=30000){if(instantSimulating)thirtyThousandVoicePlayed=true;else thirtyThousandVoicePending=true;}const hitAt=roundSpins;roundSpins=0;remaining=spec.s+spec.e;refill();return {hit:true,balls:hold.balls,hitAt,color:hold.color};}
  refill();return {hit:false,color:hold.color};
 }
 function finalSymbols(out){
@@ -481,12 +622,20 @@ async function showFinal(out,ms){
 }
 
 async function animation(out){await showFinal(out,950);}
-async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");stats();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
-function start(){$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(busy)return;unlockEffects();prealertSound.load();prealertEnabled=$("prealertEnabled").checked;
- prealertTarget=Number($("prealertRate").value);const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();pendingPrealerts=0;ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();}
-function fast(){$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
+async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");stats();flushMilestoneVoice();flushTwentyThousandVoice();flushThirtyThousandVoice();flushTenChainVoice();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
+function start(){if(busy)return;document.getElementById("replayArea").hidden=true;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");unlockEffects();tenThousandVoice.load();twentyThousandVoice.load();thirtyThousandVoice.load();tenChainVoice.load();prealertEnabled=$("prealertEnabled").checked;
+ prealertNoticeCount=0;prealertGenerated=0;prealertNotified=0;specialGenerated=0;specialNotified=0;updateCueDiagnostics();const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;tenChainVoicePlayed=false;tenChainVoicePending=false;tenChainVoice.pause();tenChainVoice.currentTime=0;tenThousandVoicePlayed=false;milestoneVoicePending=false;tenThousandVoice.pause();tenThousandVoice.currentTime=0;twentyThousandVoicePlayed=false;twentyThousandVoicePending=false;twentyThousandVoice.pause();twentyThousandVoice.currentTime=0;thirtyThousandVoicePlayed=false;thirtyThousandVoicePending=false;thirtyThousandVoice.pause();thirtyThousandVoice.currentTime=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();
+ // Initial holds also count as an appearance, but only after they are drawn.
+ if(holdQueue.some(h=>h.haptic||h.prealert))requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  if(!active)return;
+  if(holdQueue.some(h=>h.haptic)){holdQueue.filter(h=>h.haptic).forEach(h=>h.specialVoicePlayed=true);triggerHighConfidenceHaptic();}
+  const alerts=holdQueue.filter(h=>h.prealert&&!h.prealertPlayed);
+  if(alerts.length){alerts.forEach(h=>h.prealertPlayed=true);if(holdQueue.some(h=>h.haptic))setTimeout(()=>{if(active)playPrealert();},650);else playPrealert();}
+ }));}
+function fast(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
+$("replay").onclick=()=>{if(busy||active)return;start();};
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
-function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>300)box.lastChild.remove();}
+function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>180)box.lastChild.remove();}
 // Fast path: cap each ordinary spin to ~300ms including visual updates.
 // Avoid multiple concurrent reel RAFs and overlapping hold animations.
 async function showUltraFast(out){
@@ -510,7 +659,12 @@ async function showUltraFast(out){
  if(out.hit){ui.flash.classList.remove("on");void ui.flash.offsetWidth;ui.flash.classList.add("on");if(!out.special810)playJackpotBounce();playJackpotSound();}
  // Fast-mode holds are redrawn without 1.2s sequential animation.
  renderHolds();
- if(pendingPrealerts>0){pendingPrealerts=0;if(prealertEnabled)playPrealert();}
+ // Ultra-fast mode previously skipped the special-hold appearance sound.
+ const newSpecials=holdQueue.filter(h=>h.haptic&&!h.specialVoicePlayed);
+ if(newSpecials.length){newSpecials.forEach(h=>h.specialVoicePlayed=true);triggerHighConfidenceHaptic();}
+ const alerts=holdQueue.filter(h=>h.prealert&&!h.prealertPlayed);
+ if(alerts.length&&prealertEnabled){alerts.forEach(h=>h.prealertPlayed=true);if(newSpecials.length)setTimeout(()=>{if(active)playPrealert();},650);else playPrealert();}
+ updateCueDiagnostics();
  await wait(190);
 }
 async function autoPlay(){
@@ -533,7 +687,7 @@ async function autoPlay(){
     await settleHolds(out);
    }
    if(!valid() && active)break;
-   stats();
+   stats();flushMilestoneVoice();flushTwentyThousandVoice();flushThirtyThousandVoice();flushTenChainVoice();
    if(!out.hit&&remaining<=0){end();break;}
   }
  }catch(error){
@@ -550,8 +704,8 @@ ui.start.onclick=start;ui.spin.onclick=step;ui.auto.onclick=autoPlay;$("instant"
 $("backSettings").onclick=()=>{
  if(busy)return;
  autoRunning=false;autoToken++;
- stopRushVideo();bgmStop();$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");active=false;holdQueue=[];pendingPrealerts=0;controls();
- $("appRoot").classList.replace("play-mode","setup-mode");
+ stopRushVideo();bgmStop();specialVoice.pause();twentyThousandVoicePending=false;thirtyThousandVoicePending=false;thirtyThousandVoice.pause();document.getElementById("replayArea").hidden=true;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");active=false;holdQueue=[];pendingPrealerts=0;controls();
+ $("appRoot").classList.replace("play-mode","setup-mode");controls();
  exitRushFullscreen();
  window.scrollTo({top:0,behavior:"instant"});
 };
@@ -623,10 +777,13 @@ ui.spin.onclick=async function(event){
 
 $("prealertEnabled").addEventListener("change",()=>{
  prealertEnabled=$("prealertEnabled").checked;
- prealertTarget=Number($("prealertRate").value);
+ updateCueDiagnostics();
  if(!prealertEnabled){pendingPrealerts=0;prealertPlayToken++;prealertSound.pause();prealertSound.currentTime=0;}
 });
 
 // Pre-decode the short alert as early as possible. Playback still starts only
 // after an explicit user gesture unlocks the AudioContext on iPhone.
 window.addEventListener("load",()=>{try{unlockEffects();}catch(e){}},{once:true});
+
+// Preload special artwork to avoid a blank frame during the first rare cue.
+const specialHoldPreload=new Image();specialHoldPreload.src="special-hold-v90.png";

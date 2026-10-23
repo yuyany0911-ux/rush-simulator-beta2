@@ -155,3 +155,97 @@ Ver.72: 先バレ音量をVer.71比で30%低減（0.0144→0.01008）。その�
 先バレ音源をVer.79から15%増幅。iPhone用の音源直接加工方式を維持。新規音源 prealert-quiet-v80.mp3 をアップロード。
 
 Ver.81: 消化中の保留の信頼度が70%以上の場合に残り回転数を赤くし軽いノイズを表示。
+
+## Ver.82 Dark Cyberpunk
+設定画面を赤・黒・シアンのサイバーパンクUIに変更。抽選・演出・音声JSはVer.81から変更なし。
+
+## Ver.83 (site version 0.5)
+- Title displays RUSH SIMULATOR Ver. 0.5 with a smaller version label.
+- End-of-RUSH screen shows a replay button, which starts another run with the same settings without returning to the setup screen.
+- Replay resets counters, holds, history, and audio state through the existing start() routine.
+- Script/CSS cache versions updated.
+
+## Ver.84
+- Remove SYSTEM ONLINE // RUSH CONTROL subtitle.
+- Add spacing before Ver. 0.5.
+- Derive replay button visibility from finished RUSH state each time controls refresh (including after visiting settings).
+- Increase total-payout HUD width and hold artwork sizes slightly.
+
+## Ver.85
+80%理論信頼度の独立振動予告が付いた保留に、ユーザー提供画像を色別に適用。出現時のみ画像が揺れるアニメーションを追加。通常保留と消化中の保留サイズは既存CSSを維持。iOSでは画面上の揺れ演出、Android対応端末ではバイブレーションも維持。
+
+## Ver.86
+- 高信頼度特殊顔保留は色の抽選結果にかかわらず白色画像のみ表示（抽選と通常保留の色は変更なし）。
+- 顔保留の輪郭を白銀色に調整。
+- 出現振動を850msに強調。GPU向けtransform/opacityのみで描画。
+
+## Ver.87
+振動特殊保留のみユーザー提供のグレー色画像 `special-hold-gray-v87.png` に変更。通常保留と振動アニメーションはそのまま。
+
+## Ver.88
+- 新規補充保留で特殊保留の画像指定が抜けていた不具合を修正。
+- 添付された顔保留を `special-hold-v88.png` として使用。
+- 旧 `special-hold-gray-v87.png` は不要。
+- iPhone実機テストは未実施。
+
+## Ver.89
+- 振動特殊保留出現時に専用ボイスを再生（元音源から約20%増幅、ピーク制限あり）。
+- 特殊保留の先バレ抽選を無効化し、同時に発生する先バレ待機音も抑制。
+- 新しい `special-hold-voice-v89.mp3` を同階層にアップロードすること。
+- iPhone実機での動作確認は未実施。
+
+## Ver.90
+- 振動保留の画像をユーザー提供のグレーの顔に変更 (`special-hold-v90.png`)。
+- 振動保留が1マス移動するたび、画像に0.65秒の振動モーションを適用。出現時の音声は従来どおり1回のみ。
+- JavaScript構文とZIP整合性を検査。スマホ実機テストは未実施。
+
+## Ver.91
+- 1回のRUSHで累計獲得出玉が10,000玉に初めて到達した時に、アップロードされた「一万発オーバー」音声を1回再生します（ちょうど10,000玉も含む）。
+- 再プレイ時は判定をリセット。10,000玉到達後の追加当たりでは再生しません。
+- 一括消化時は高速性を優先し音声を鳴らしません。
+- `ten-thousand-voice-v91.mp3` を追加してください。
+
+## Ver.92
+特殊保留の音声を描画後に移動し、10000玉ボイスをHUD更新後に移動。
+
+## Ver.93: 10連達成ボイス
+10連表記に更新された直後に「あるなー！」を一度だけ再生。再プレイでリセット。一括消化は無音。新規 ten-chain-voice-v93.mp3 を配置。
+
+## Ver.94
+通常保留の先バレ通知が特殊保留の処理で消去される問題を修正。初回の5保留でも描画後に通知。色に依存せず大当たり抽選結果に応じた先バレ判定（25/40/99%）を維持。特殊保留そのものには通常先バレを割り当てない。
+
+## Ver.95
+総獲得出玉が20,000玉以上に初めて達したとき、表示更新後に「二万発オーバー！」ボイスを1回再生。再プレイでリセット。一括消化は従来の節目ボイスと同様に無音。新規ファイル `twenty-thousand-voice-v95.mp3` を追加。
+
+## Ver.96
+- 総出玉30,000玉以上の表示になった直後に「まだまだいきますよ！」ボイスを1RUSHにつき1回再生。
+- 一括消化では再生しない。再プレイ時に再生状態をリセット。
+- 新規音源 `thirty-thousand-voice-v96.mp3` が必要。
+
+## Ver.97
+通常保留の先バレを各保留に紐づけて出現時に再生。振動保留は対象外。初期表示と0.3秒オートの表示経路も対応。既存の先バレ信頼度設定と音源を維持。
+
+## Ver.98 先バレ再生の修正
+- 先バレは保留色と振動保留に関係なく独立抽選。振動保留でも先バレと専用ボイスの両方が発生し得ます。
+- iPhone Chrome対策: ユーザー操作でアンロックしたWebAudioから先バレを再生。未準備の場合は物理音量を加工した prealert-v98-audible.mp3 へフォールバック。
+- 音量は元音源の約9%で書き出し。従来v80（約4.05%）より約2.2倍。音量が大きい場合は調整可能。
+- 抽選確率・他の演出は維持。iPhone実機テストは未実施。
+
+
+## Ver.99 先バレ診断
+25%、40%、99%すべて同一の音声再生経路。先バレ抽選に当選すると画面に「先バレ発生」と1秒表示します。表示がない場合は抽選未当選、表示があるのに無音なら音声再生またはファイル配信に問題があります。1/99.9の場合、25%先バレは約3.4%/保留、40%は約2.1%/保留、99%は約0.86%/保留の発生率（振動保留の判定と独立）。iPhone実機未検証。
+
+Ver.100: shared visual prealert dispatch on newly displayed holds; diagnostic count. No alteration to hit rate or alert reliability math. Browser/iPhone testing pending.
+
+
+## Ver.102
+- 先バレ信頼度の選択肢（25%・40%）を削除。先バレ機能はON/OFFのみで、ON時は信頼度99%固定。
+- 振動保留の専用ボイスなど他の演出はVer.101から維持。
+- iPhone実機での動作確認は未実施。
+
+
+## Ver.103 changes
+- Removed the visible “先バレ発生” diagnostic banner and the debug counter panel. Pre-alert sound and special-hold voice remain unchanged.
+- Reduced maximum retained spin history DOM entries from 300 to 180 to reduce long-session mobile memory usage.
+- Bumped CSS and JS cache versions to 103 to help GitHub Pages clients fetch the updated files.
+- Verified JS syntax and ZIP integrity. iPhone device playback/performance is not tested in this environment.

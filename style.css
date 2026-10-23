@@ -1207,3 +1207,149 @@ body.rush-immersive #appRoot.play-mode .theater-bar button{
 }
 @keyframes counter-noise-v81{0%{transform:translate(0,0);opacity:.13}33%{transform:translate(1px,-1px);opacity:.28}67%{transform:translate(-1px,1px);opacity:.19}100%{transform:translate(0,0);opacity:.24}}
 @media(prefers-reduced-motion:reduce){#screen .rush-bottom-counter.high-confidence-active::after{animation:none}}
+
+
+/* ===== V82 DARK CYBERPUNK: visual-only skin, mobile-first ===== */
+:root{--cy-red:#ff314f;--cy-red-dim:#a51c34;--cy-cyan:#64e7f2;--cy-ink:#070911;--cy-panel:#0c101b;--cy-line:#3a283b}
+body{background:radial-gradient(ellipse at 50% -12%,#311022 0%,#0b0b15 40%,#05060c 78%)!important;color:#e9f2f8!important}
+#appRoot{position:relative}
+#appRoot header{position:relative;margin-bottom:15px!important;border-left:0!important;padding:14px 8px 13px!important;text-align:center;background:linear-gradient(180deg,#190c18,#0b0c15)!important;border:1px solid #9e273f!important;clip-path:polygon(4% 0,96% 0,100% 18%,100% 100%,0 100%,0 18%);box-shadow:inset 0 -2px #db2a43,0 8px 20px #0008}
+#appRoot header::after{content:'SYSTEM ONLINE  //  RUSH CONTROL';display:block;font:700 9px/1.4 monospace;letter-spacing:2px;color:#68dce8;margin-top:5px}
+#appRoot header h1{font-family:Arial,'Noto Sans JP',sans-serif!important;font-style:italic;letter-spacing:.035em;font-weight:1000!important;font-size:clamp(23px,6.8vw,34px)!important;margin:2px 0!important;color:#fff!important;text-shadow:2px 2px 0 #6f172d!important}
+#appRoot header h1 span,#appRoot header h1 .rush-word{color:#fff!important;text-shadow:2px 2px 0 #6f172d!important}
+#appRoot .panel{position:relative;background:linear-gradient(140deg,#12101c 0%,#080d17 58%,#140b16 100%)!important;border:1px solid #8e2940!important;border-radius:4px!important;box-shadow:inset 0 0 0 2px #0a0a12,0 0 0 1px #351522,0 10px 26px #0009!important;padding:17px 15px 19px!important}
+#appRoot .panel::before{content:'◢  CONFIGURATION / 01';display:block;color:#ff5368;font:700 10px monospace;letter-spacing:2px;margin-bottom:12px;border-bottom:1px solid #682038;padding-bottom:9px}
+#appRoot .panel h2{color:#fff!important;font-size:14px!important;letter-spacing:2px!important;margin:0 0 18px!important;padding-left:10px;border-left:3px solid var(--cy-red)}
+#appRoot .panel h3{color:#e9f2f8!important;font-size:13px!important;letter-spacing:1px!important;border-bottom:1px solid #512336;padding-bottom:8px}
+#appRoot .panel label{color:#b6c8d7!important;font-weight:600!important;letter-spacing:.2px}
+#appRoot .panel input:not([type=checkbox]),#appRoot .panel select{background:linear-gradient(180deg,#080b14,#0c101d)!important;border:1px solid #49566c!important;border-left:2px solid #2ec2d7!important;border-radius:2px!important;color:#eafaff!important;box-shadow:inset 0 2px 7px #0009!important;outline-offset:2px}
+#appRoot .panel input:focus,#appRoot .panel select:focus{border-color:var(--cy-cyan)!important;outline:1px solid #64e7f2!important}
+#appRoot .panel>label:has(#denom),#appRoot .panel>label:has(#spins){display:inline-flex!important;flex-direction:column;vertical-align:top;width:calc(50% - 5px);margin:6px 0 14px!important;font-size:11px!important}
+#appRoot .panel>label:has(#denom){margin-right:6px!important}
+#appRoot .panel #denom,#appRoot .panel #spins{font-size:clamp(22px,6vw,29px)!important;font-weight:900!important;text-align:center;color:#76ecf4!important;height:58px!important;letter-spacing:1px;padding:8px 2px!important}
+#appRoot .panel #spins{color:#ff6485!important;border-left-color:#f33b58!important}
+#appRoot #payouts{border:1px solid #432337;background:#090b13;padding:8px;border-radius:2px}
+#appRoot #payouts .row{margin:6px 0!important}
+#appRoot #payouts input{margin-top:0!important;padding:10px 8px!important;height:40px!important;font-size:15px!important}
+#appRoot #payouts .row span{color:#66e3ef!important;font-weight:800}
+#appRoot button{border-radius:3px!important;transition:filter .15s ease,background .15s ease}
+#appRoot .panel .sub{background:#21101e!important;color:#f4a1b0!important;border:1px solid #a82a46!important;margin-top:7px}
+#appRoot .panel .info{color:#67d9e6!important;font-size:11px!important}
+#appRoot .prealert-setting{background:linear-gradient(90deg,#130e1b,#21101e)!important;border:1px solid #a12d47!important;border-left:3px solid #e93452!important;border-radius:3px!important;padding:12px!important}
+#appRoot .prealert-setting strong{color:#fff!important}
+#appRoot .prealert-setting small{color:#a9bacb!important}
+#appRoot .prealert-setting input[type=checkbox]{accent-color:#ff3659!important}
+#appRoot .panel #prealertRate{border-left-color:#f33b58!important;font-weight:800}
+#appRoot #start{position:relative!important;background:linear-gradient(180deg,#ff3955 0%,#bd1837 48%,#760e25 100%)!important;color:#fff!important;border:1px solid #ff7891!important;box-shadow:inset 0 2px #ff9aa8,0 0 0 3px #2b0a18,0 4px 18px #e9164255!important;text-shadow:0 1px 2px #430016!important;font-size:16px!important;letter-spacing:1px!important;min-height:58px!important;margin-top:22px!important;clip-path:polygon(4% 0,96% 0,100% 50%,96% 100%,4% 100%,0 50%)}
+#appRoot #start:active{filter:brightness(1.25)}
+#appRoot .machine{background:linear-gradient(180deg,#12101c,#090b13)!important;border:1px solid #75253c!important;border-radius:4px!important;box-shadow:0 10px 24px #0009!important}
+#appRoot .theater-bar{border-color:#9b2b43!important}
+#appRoot .theater-bar button,#appRoot .controls button{background:#1a1020!important;border:1px solid #a22d48!important;color:#fff!important}
+#appRoot #auto.running{background:#9c1b39!important}
+#appRoot .auto-options select{border-color:#ae3852!important;background:#0c0c16!important}
+#appRoot .history{border-top-color:#79223d!important}
+#appRoot .history h3{color:#f3f1f6!important}
+#appRoot #historyLog{background:#080b14!important;border-color:#55263a!important}
+#appRoot #screen{border-color:#561b32!important;outline:1px solid #df3454!important;box-shadow:inset 0 0 35px #0009,0 0 0 3px #110c16!important}
+/* Preserve the video, reels, holds and warning counter logic. Change HUD frames only. */
+#appRoot #screen .hud{border-color:#e03450!important;background:linear-gradient(110deg,#140b1ccc,#070d18dd)!important;box-shadow:inset 0 0 0 1px #441324!important}
+#appRoot #screen .hud-caption{color:#f6a7b6!important}
+#appRoot #screen .hud-total{border-color:#53b9ca!important}
+#appRoot #screen .hud-total .hud-caption{color:#79e9f0!important}
+#appRoot #screen .rush-bottom-counter.high-confidence-active .hud-value,#appRoot #screen .rush-bottom-counter.high-confidence-active #hudRemain{color:#ff333a!important;-webkit-text-fill-color:#ff333a!important}
+#appRoot .hold-guide{color:#a3b4c5!important}
+@media(max-width:600px){
+ #appRoot header{margin-bottom:12px!important}
+ #appRoot .panel{padding:15px 13px 17px!important}
+ #appRoot .panel>label:has(#denom),#appRoot .panel>label:has(#spins){width:calc(50% - 5px)}
+ #appRoot .panel #denom,#appRoot .panel #spins{font-size:clamp(21px,6vw,28px)!important}
+}
+@media(prefers-reduced-motion:reduce){#appRoot button{transition:none}}
+
+/* Ver.83: compact title version and end-of-RUSH replay */
+#appRoot header h1{display:flex;align-items:baseline;justify-content:center;flex-wrap:wrap;gap:0 .24em;}
+#appRoot header h1 .version-tag{font-family:Arial,'Noto Sans JP',sans-serif;font-style:normal;font-size:.35em;font-weight:700;letter-spacing:.025em;color:#e8a0aa;text-shadow:none;white-space:nowrap;}
+#appRoot .replay-area[hidden]{display:none!important;}
+#appRoot .replay-area{margin:14px 0 8px;padding:17px 12px;text-align:center;border:1px solid #e23d57;background:linear-gradient(135deg,#250c18,#100c13);box-shadow:inset 0 0 0 1px #4d1829,0 0 18px #db244822;}
+#appRoot .replay-area p{margin:0 0 10px;font-size:12px;letter-spacing:.19em;font-weight:800;color:#ff7c8e;}
+#appRoot .replay-area .replay-button{width:100%;min-height:53px;background:linear-gradient(180deg,#c62943,#7e142c);border:1px solid #ff7384;color:#fff;font-size:17px;font-weight:900;letter-spacing:.04em;box-shadow:inset 0 1px #ff8b95,0 4px 14px #0009;}
+#appRoot .replay-area small{display:block;margin-top:9px;color:#c9aeb8;font-size:11px;}
+@media(max-width:430px){#appRoot header h1{column-gap:.16em!important;}#appRoot header h1 .version-tag{font-size:.32em;}}
+
+/* Ver.84: title readability, no subtitle, wider payout HUD, larger holds. */
+#appRoot header::after{content:none!important;display:none!important;}
+#appRoot header h1{display:flex!important;align-items:baseline!important;justify-content:center!important;flex-wrap:wrap!important;column-gap:.25em!important;row-gap:.15em!important;}
+#appRoot header h1 .version-tag{display:inline-block!important;position:static!important;margin-left:.9em!important;font-size:clamp(10px,2.7vw,13px)!important;line-height:1.4!important;letter-spacing:0!important;white-space:nowrap!important;flex-shrink:0!important;}
+#appRoot #screen .hud-total{min-width:125px!important;max-width:calc(100% - 14px)!important;padding:4px 10px!important;box-sizing:border-box!important;}
+#appRoot #screen .hud-total .hud-value{white-space:nowrap!important;justify-content:flex-end!important;}
+/* Current hold remains prominent, while the waiting four get a modest size boost. */
+#appRoot.play-mode #screen #holdLamps{gap:3px!important;}
+#appRoot.play-mode #screen #holdLamps .hold-orb:not(.next){width:clamp(33px,9vw,41px)!important;height:clamp(33px,9vw,41px)!important;flex:0 0 clamp(33px,9vw,41px)!important;}
+#appRoot.play-mode #screen #holdLamps .hold-orb.next:not(.consuming){width:clamp(65px,17.5vw,79px)!important;height:clamp(65px,17.5vw,79px)!important;flex:0 0 clamp(65px,17.5vw,79px)!important;}
+#appRoot.play-mode #screen .rush-bottom-holds{width:min(76%,302px)!important;left:64%!important;}
+@media(max-width:370px){
+ #appRoot header h1{column-gap:.22em!important;}
+ #appRoot header h1 .version-tag{margin-left:.6em!important;}
+ #appRoot.play-mode #screen #holdLamps .hold-orb:not(.next){width:31px!important;height:31px!important;flex-basis:31px!important;}
+ #appRoot.play-mode #screen #holdLamps .hold-orb.next:not(.consuming){width:62px!important;height:62px!important;flex-basis:62px!important;}
+ #appRoot.play-mode #screen .rush-bottom-holds{left:65%!important;}
+}
+
+/* Ver.85: high-confidence cue uses the supplied face artwork in every color.
+   Animate the incoming hold itself, not the entire screen. */
+#appRoot.play-mode #screen #holdLamps .hold-orb.special-cue{overflow:visible!important;contain:layout style;}
+#appRoot.play-mode #screen #holdLamps .hold-orb.special-cue .hold-face-img{width:100%!important;height:100%!important;object-fit:contain!important;filter:none!important;}
+#appRoot.play-mode #screen #holdLamps .hold-orb.special-enter .hold-face-img{
+ animation:special-hold-arrival-v85 550ms ease-out both!important;
+ transform-origin:center center;
+}
+@keyframes special-hold-arrival-v85{
+ 0%{transform:translate3d(0,-11px,0) scale(.6) rotate(-12deg);opacity:0}
+ 23%{transform:translate3d(-4px,0,0) scale(1.15) rotate(8deg);opacity:1}
+ 42%{transform:translate3d(4px,-2px,0) scale(1.05) rotate(-7deg)}
+ 61%{transform:translate3d(-3px,1px,0) scale(1.08) rotate(5deg)}
+ 79%{transform:translate3d(2px,0,0) scale(1.02) rotate(-3deg)}
+ 100%{transform:translate3d(0,0,0) scale(1) rotate(0);opacity:1}
+}
+@media(prefers-reduced-motion:reduce){#appRoot.play-mode #screen #holdLamps .hold-orb.special-enter .hold-face-img{animation:none!important;}}
+
+/* Ver.86 — exaggerated special hold entrance; only the supplied white face is used.
+   Transform/opacity only: compositor-friendly at 0.3s auto speed. */
+#appRoot.play-mode #screen #holdLamps .hold-orb.special-enter .hold-face-img{
+ animation:special-hold-arrival-v86 850ms cubic-bezier(.18,.7,.2,1) both!important;
+ transform-origin:50% 50%;will-change:transform,opacity;
+}
+@keyframes special-hold-arrival-v86{
+ 0%{transform:translate3d(0,-17px,0) rotate(-18deg) scale(.52);opacity:0}
+ 13%{transform:translate3d(-9px,3px,0) rotate(16deg) scale(1.24);opacity:1}
+ 25%{transform:translate3d(9px,-5px,0) rotate(-15deg) scale(1.17)}
+ 37%{transform:translate3d(-8px,4px,0) rotate(13deg) scale(1.16)}
+ 49%{transform:translate3d(7px,-3px,0) rotate(-11deg) scale(1.12)}
+ 62%{transform:translate3d(-6px,2px,0) rotate(8deg) scale(1.09)}
+ 75%{transform:translate3d(4px,-2px,0) rotate(-6deg) scale(1.06)}
+ 88%{transform:translate3d(-2px,1px,0) rotate(3deg) scale(1.03)}
+ 100%{transform:translate3d(0,0,0) rotate(0deg) scale(1);opacity:1}
+}
+@media(prefers-reduced-motion:reduce){#appRoot.play-mode #screen #holdLamps .hold-orb.special-enter .hold-face-img{animation:none!important;will-change:auto!important;}}
+
+/* Ver.90: a special hold trembles on every position change, not just appearance.
+   Animate only the face image so the slot movement and layout stay stable. */
+#appRoot.play-mode #screen #holdLamps .hold-orb.special-move .hold-face-img{
+ animation:special-hold-step-v90 650ms ease-out both!important;
+ transform-origin:50% 50%;
+}
+@keyframes special-hold-step-v90{
+ 0%{transform:translate3d(0,0,0) rotate(0)}
+ 12%{transform:translate3d(-7px,-3px,0) rotate(-13deg) scale(1.12)}
+ 24%{transform:translate3d(7px,3px,0) rotate(12deg) scale(1.12)}
+ 36%{transform:translate3d(-6px,1px,0) rotate(-10deg) scale(1.09)}
+ 48%{transform:translate3d(6px,-2px,0) rotate(9deg) scale(1.07)}
+ 60%{transform:translate3d(-4px,2px,0) rotate(-7deg) scale(1.05)}
+ 75%{transform:translate3d(3px,-1px,0) rotate(5deg) scale(1.03)}
+ 100%{transform:translate3d(0,0,0) rotate(0) scale(1)}
+}
+@media(prefers-reduced-motion:reduce){
+ #appRoot.play-mode #screen #holdLamps .hold-orb.special-move .hold-face-img{animation:none!important;}
+}
+
+/* V99: visual confirmation that the pre-alert lottery fired. */
