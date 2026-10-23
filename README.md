@@ -249,3 +249,5 @@ Ver.100: shared visual prealert dispatch on newly displayed holds; diagnostic co
 - Reduced maximum retained spin history DOM entries from 300 to 180 to reduce long-session mobile memory usage.
 - Bumped CSS and JS cache versions to 103 to help GitHub Pages clients fetch the updated files.
 - Verified JS syntax and ZIP integrity. iPhone device playback/performance is not tested in this environment.
+
+Ver.104: Five effects have louder, peak-limited audio files; prealert WebAudio no longer applies extra attenuation. iPhone real-device listening not verified.

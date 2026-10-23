@@ -18,7 +18,7 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3",prealert:"prealert-v98-audible.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:0.0405}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3",prealert:"prealert-v104.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:1.0}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
 const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
@@ -85,7 +85,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 // iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
-const prealertSound=new Audio("prealert-v98-audible.mp3");
+const prealertSound=new Audio("prealert-v104.mp3");
 prealertSound.preload="auto";
 prealertSound.volume=1;
 prealertSound.load();
@@ -128,7 +128,7 @@ function playPrealert(){
    const source=ctx.createBufferSource(),gain=ctx.createGain();
    source.buffer=buffer;
    // Use a real GainNode, never a bare destination connection.
-   gain.gain.value=0.75;
+   gain.gain.value=1.0;
    source.connect(gain);gain.connect(ctx.destination);source.start(0);
    source.onended=()=>{source.disconnect();gain.disconnect();};
    return;
@@ -323,7 +323,7 @@ function highConfidenceCue(hit){
 }
 // A dedicated, slightly louder file for the special vibrating hold.
 // Play from the user-triggered spin flow, avoiding iOS HTMLAudio volume limitations.
-const specialVoice=new Audio("special-hold-voice-v89.mp3");
+const specialVoice=new Audio("special-hold-voice-v104.mp3");
 specialVoice.preload="auto";
 function playSpecialVoice(){
  if(instantSimulating)return;
@@ -337,7 +337,7 @@ function playSpecialVoice(){
 }
 // One-time milestone voice when cumulative payout first reaches 10,000 balls.
 // Keep a separate audio player; this does not change jackpot / pre-alert effects.
-const tenThousandVoice=new Audio("ten-thousand-voice-v91.mp3");
+const tenThousandVoice=new Audio("ten-thousand-voice-v104.mp3");
 tenThousandVoice.preload="auto";
 let tenThousandVoicePlayed=false;
 let milestoneVoicePending=false;
@@ -351,7 +351,7 @@ function playTenThousandVoice(){
  }catch(err){console.warn("10000玉ボイス再生エラー",err);}
 }
 // Ver.95: fire only after the visible cumulative payout has reached 20,000.
-const twentyThousandVoice=new Audio("twenty-thousand-voice-v95.mp3");
+const twentyThousandVoice=new Audio("twenty-thousand-voice-v104.mp3");
 twentyThousandVoice.preload="auto";
 let twentyThousandVoicePlayed=false;
 let twentyThousandVoicePending=false;
@@ -388,7 +388,7 @@ function flushThirtyThousandVoice(){
  }));
 }
 // Play once when the displayed RUSH count first reaches 10.
-const tenChainVoice=new Audio("ten-chain-voice-v93.mp3");
+const tenChainVoice=new Audio("ten-chain-voice-v104.mp3");
 tenChainVoice.preload="auto";
 let tenChainVoicePlayed=false;
 let tenChainVoicePending=false;
