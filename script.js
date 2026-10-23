@@ -18,7 +18,7 @@ function digits(a){
 }
 // iPhone Chrome / Safari: preload and unlock short effects via one Web Audio context.
 // BGM and pre-alert remain on their existing players.
-const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3",prealert:"prealert-v104.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:1.0}};
+const effectAudio={ctx:null,buffers:{},loading:null,urls:{stop:"reel-stop.mp3",jackpot:"jackpot-sound.mp3",setup:"setup-complete.mp3",prealert:"prealert-v106.mp3"},volumes:{stop:0.275,jackpot:0.81,setup:0.255,prealert:1.0}};
 // HTMLAudio fallback ensures stop sounds are not silently discarded while WebAudio decodes.
 const effectFallback={stop:new Audio("reel-stop.mp3"),jackpot:new Audio("jackpot-sound.mp3"),setup:new Audio("setup-complete.mp3")};
 Object.values(effectFallback).forEach(a=>{a.preload="auto";a.load();});
@@ -85,7 +85,7 @@ function playSetupCompleteSound(){playEffect("setup");}
 // Independent 40%-reliability pre-alert. Color does not determine the alert.
 // P(hit | alert) = 40% for base hit rates below 40% (Bayes' rule).
 // iOS ignores HTMLMediaElement.volume. The MP3 itself is attenuated to 4.05%.
-const prealertSound=new Audio("prealert-v104.mp3");
+const prealertSound=new Audio("prealert-v106.mp3");
 prealertSound.preload="auto";
 prealertSound.volume=1;
 prealertSound.load();
@@ -116,30 +116,31 @@ function updateCueDiagnostics(){
 // makes it possible to distinguish a missed draw from a failed audio output.
 let prealertPlayToken=0;
 let prealertNoticeCount=0;
+// Ver.107: use the same HTMLAudio playback route that worked in the
+// user-gesture test. Keep WebAudio only as a fallback when play() rejects.
 function playPrealert(){
- if(!prealertEnabled||instantSimulating)return;
+ if(!prealertEnabled||instantSimulating||!sound||!active)return;
  prealertNotified++;updateCueDiagnostics();
-
- if(!sound)return;
  ++prealertPlayToken;
- const ctx=effectAudio.ctx,buffer=effectAudio.buffers.prealert;
- if(ctx&&buffer&&ctx.state==="running"){
-  try{
-   const source=ctx.createBufferSource(),gain=ctx.createGain();
-   source.buffer=buffer;
-   // Use a real GainNode, never a bare destination connection.
-   gain.gain.value=1.0;
-   source.connect(gain);gain.connect(ctx.destination);source.start(0);
-   source.onended=()=>{source.disconnect();gain.disconnect();};
-   return;
-  }catch(error){console.warn("先バレ WebAudio 再生失敗",error);}
- }
+ const fallback=()=>{
+  const ctx=effectAudio.ctx,buffer=effectAudio.buffers.prealert;
+  if(!ctx||!buffer)return;
+  const playBuffer=()=>{
+   try{
+    const source=ctx.createBufferSource(),gain=ctx.createGain();
+    source.buffer=buffer;gain.gain.value=1;
+    source.connect(gain);gain.connect(ctx.destination);source.start();
+    source.onended=()=>{source.disconnect();gain.disconnect();};
+   }catch(e){console.warn("先バレ再生に失敗",e);}
+  };
+  if(ctx.state==="running")playBuffer();
+  else ctx.resume().then(playBuffer).catch(e=>console.warn("先バレ音声が制限されました",e));
+ };
  try{
-  // The fallback is a pre-attenuated file for iPhone's unreliable volume property.
   prealertSound.pause();prealertSound.currentTime=0;
-  const attempt=prealertSound.play();
-  if(attempt?.catch)attempt.catch(error=>console.warn("先バレ HTMLAudio 再生制限",error));
- }catch(error){console.warn("先バレ音声再生失敗",error);}
+  const result=prealertSound.play();
+  if(result&&result.catch)result.catch(error=>{console.warn("先バレ HTMLAudio 再生失敗",error);fallback();});
+ }catch(error){console.warn("先バレ音声再生失敗",error);fallback();}
 }
 // BGM: two independent audio decks for gap-free overlapping transitions.
 // Fade-out near the end while fading in the next playback, at a quiet volume.
@@ -369,22 +370,47 @@ function flushTwentyThousandVoice(){
   }catch(err){console.warn("20000玉ボイス再生エラー",err);}
  }));
 }
-// Ver.96: play the 30,000-ball voice after the payout HUD has painted.
-const thirtyThousandVoice=new Audio("thirty-thousand-voice-v96.mp3");
-thirtyThousandVoice.preload="auto";
-let thirtyThousandVoicePlayed=false;
-let thirtyThousandVoicePending=false;
-function flushThirtyThousandVoice(){
- if(!thirtyThousandVoicePending)return;
- thirtyThousandVoicePending=false;
+// Ver.105: payout milestones are cued only AFTER the total HUD has been painted.
+// Use independent players, but never overlap milestone voices with each other.
+const thirtyThousandVoice=new Audio("thirty-thousand-voice-v105.mp3");
+const fortyThousandVoice=new Audio("forty-thousand-voice-v105.mp3");
+const fiftyThousandVoice=new Audio("fifty-thousand-voice-v105.mp3");
+const extraMilestoneVoices=[thirtyThousandVoice,fortyThousandVoice,fiftyThousandVoice];
+extraMilestoneVoices.forEach(audio=>audio.preload="auto");
+let thirtyThousandVoicePlayed=false,fortyThousandVoicePlayed=false,fiftyThousandVoicePlayed=false;
+let thirtyThousandVoicePending=false,fortyThousandVoicePending=false,fiftyThousandVoicePending=false;
+// Keep a token to prevent delayed callbacks from a previous RUSH firing in the next.
+let payoutCueEpoch=0;
+function playPayoutCue(audio,label){
+ if(!sound||instantSimulating)return;
+ for(const other of [tenThousandVoice,twentyThousandVoice,...extraMilestoneVoices]){
+  if(other!==audio){other.pause();other.currentTime=0;}
+ }
+ try{
+  audio.currentTime=0;
+  const attempt=audio.play();
+  if(attempt&&typeof attempt.catch==="function")attempt.catch(err=>console.warn(label+"ボイス再生失敗",err));
+ }catch(err){console.warn(label+"ボイス再生エラー",err);}
+}
+function flushNewPayoutVoices(){
+ const pending=[
+  [30000,thirtyThousandVoice,'thirtyThousandVoicePending','thirtyThousandVoicePlayed'],
+  [40000,fortyThousandVoice,'fortyThousandVoicePending','fortyThousandVoicePlayed'],
+  [50000,fiftyThousandVoice,'fiftyThousandVoicePending','fiftyThousandVoicePlayed']
+ ];
+ const fired=pending.filter(([threshold])=>threshold<=total&&(
+  threshold===30000?thirtyThousandVoicePending:threshold===40000?fortyThousandVoicePending:fiftyThousandVoicePending));
+ if(!fired.length)return;
+ // Thresholds are monotonic; if a large single payout crosses several, announce the highest.
+ const [threshold,audio]=fired.at(-1);
+ thirtyThousandVoicePending=false;fortyThousandVoicePending=false;fiftyThousandVoicePending=false;
+ const epoch=payoutCueEpoch;
  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-  if(!active||total<30000||thirtyThousandVoicePlayed||!sound||instantSimulating)return;
-  thirtyThousandVoicePlayed=true;
-  try{
-   thirtyThousandVoice.currentTime=0;
-   const result=thirtyThousandVoice.play();
-   if(result&&typeof result.catch==="function")result.catch(err=>console.warn("30000玉ボイス再生失敗",err));
-  }catch(err){console.warn("30000玉ボイス再生エラー",err);}
+  if(epoch!==payoutCueEpoch||!active||!sound||instantSimulating||total<threshold)return;
+  if(threshold>=30000)thirtyThousandVoicePlayed=true;
+  if(threshold>=40000)fortyThousandVoicePlayed=true;
+  if(threshold>=50000)fiftyThousandVoicePlayed=true;
+  playPayoutCue(audio,threshold+"玉");
  }));
 }
 // Play once when the displayed RUSH count first reaches 10.
@@ -561,7 +587,7 @@ function flushMilestoneVoice(){
 }
 function payout(){const x=Math.random()*100;let sum=0;for(const [balls,p] of spec.rows){sum+=p;if(x<sum)return balls;}return spec.rows.at(-1)[0];}
 function updateBest(){let best={balls:0,chain:0};try{best=JSON.parse(localStorage.getItem("rushBestClassic"))||best}catch{};if(total>best.balls)best.balls=total;if(chain>best.chain)best.chain=chain;try{localStorage.setItem("rushBestClassic",JSON.stringify(best))}catch{}ui.best.textContent=`${best.balls.toLocaleString()}玉 / ${best.chain}連`;}
-function end(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;remaining=0;document.getElementById("replayArea").hidden=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}玉`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}玉</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
+function end(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;fortyThousandVoicePending=false;fiftyThousandVoicePending=false;remaining=0;document.getElementById("replayArea").hidden=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}玉`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}玉</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
 function draw(){
  if(!holdQueue.length)refill();
  const hold=holdQueue.shift()||newHold();
@@ -569,7 +595,7 @@ function draw(){
  const confidence=hold.haptic?.80:({blue:.10,green:.30,purple:.60,red:.80,gold:.90,rainbow:.98}[hold.color]||0);
  $("screen").querySelector(".rush-bottom-counter")?.classList.toggle("high-confidence-active",confidence>=.70);
  remaining--;spinsDone++;roundSpins++;
- if(hold.hit){chain++;if(chain===10){if(instantSimulating)tenChainVoicePlayed=true;else tenChainVoicePending=true;}const previousTotal=total;total+=hold.balls;if(previousTotal<10000&&total>=10000){if(instantSimulating)tenThousandVoicePlayed=true;else milestoneVoicePending=true;}if(previousTotal<20000&&total>=20000){if(instantSimulating)twentyThousandVoicePlayed=true;else twentyThousandVoicePending=true;}if(previousTotal<30000&&total>=30000){if(instantSimulating)thirtyThousandVoicePlayed=true;else thirtyThousandVoicePending=true;}const hitAt=roundSpins;roundSpins=0;remaining=spec.s+spec.e;refill();return {hit:true,balls:hold.balls,hitAt,color:hold.color};}
+ if(hold.hit){chain++;if(chain===10){if(instantSimulating)tenChainVoicePlayed=true;else tenChainVoicePending=true;}const previousTotal=total;total+=hold.balls;if(previousTotal<10000&&total>=10000){if(instantSimulating)tenThousandVoicePlayed=true;else milestoneVoicePending=true;}if(previousTotal<20000&&total>=20000){if(instantSimulating)twentyThousandVoicePlayed=true;else twentyThousandVoicePending=true;}if(previousTotal<30000&&total>=30000){if(instantSimulating)thirtyThousandVoicePlayed=true;else thirtyThousandVoicePending=true;}if(previousTotal<40000&&total>=40000){if(instantSimulating)fortyThousandVoicePlayed=true;else fortyThousandVoicePending=true;}if(previousTotal<50000&&total>=50000){if(instantSimulating)fiftyThousandVoicePlayed=true;else fiftyThousandVoicePending=true;}const hitAt=roundSpins;roundSpins=0;remaining=spec.s+spec.e;refill();return {hit:true,balls:hold.balls,hitAt,color:hold.color};}
  refill();return {hit:false,color:hold.color};
 }
 function finalSymbols(out){
@@ -622,9 +648,9 @@ async function showFinal(out,ms){
 }
 
 async function animation(out){await showFinal(out,950);}
-async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");stats();flushMilestoneVoice();flushTwentyThousandVoice();flushThirtyThousandVoice();flushTenChainVoice();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
-function start(){if(busy)return;document.getElementById("replayArea").hidden=true;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");unlockEffects();tenThousandVoice.load();twentyThousandVoice.load();thirtyThousandVoice.load();tenChainVoice.load();prealertEnabled=$("prealertEnabled").checked;
- prealertNoticeCount=0;prealertGenerated=0;prealertNotified=0;specialGenerated=0;specialNotified=0;updateCueDiagnostics();const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;tenChainVoicePlayed=false;tenChainVoicePending=false;tenChainVoice.pause();tenChainVoice.currentTime=0;tenThousandVoicePlayed=false;milestoneVoicePending=false;tenThousandVoice.pause();tenThousandVoice.currentTime=0;twentyThousandVoicePlayed=false;twentyThousandVoicePending=false;twentyThousandVoice.pause();twentyThousandVoice.currentTime=0;thirtyThousandVoicePlayed=false;thirtyThousandVoicePending=false;thirtyThousandVoice.pause();thirtyThousandVoice.currentTime=0;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();
+async function step(){if(!active||busy)return;unlockEffects();resumeRushMedia();busy=true;controls();const out=draw();logSpin(out);await animation(out);await settleHolds(out);$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");stats();flushMilestoneVoice();flushTwentyThousandVoice();flushNewPayoutVoices();flushTenChainVoice();if(!out.hit&&remaining<=0)end();else{ui.message.textContent=out.hit?"RUSH CONTINUE":"READY";ui.sub.textContent=out.hit?"NEXT ROUND":"次の変動へ";}busy=false;controls();}
+function start(){if(busy)return;document.getElementById("replayArea").hidden=true;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");unlockEffects();tenThousandVoice.load();twentyThousandVoice.load();thirtyThousandVoice.load();fortyThousandVoice.load();fiftyThousandVoice.load();tenChainVoice.load();prealertEnabled=$("prealertEnabled").checked;
+ prealertNoticeCount=0;prealertGenerated=0;prealertNotified=0;specialGenerated=0;specialNotified=0;updateCueDiagnostics();const v=parse();preview();if(!v)return;playSetupCompleteSound();stopRushVideo();bgmStop();document.getElementById("appRoot").classList.replace("setup-mode","play-mode");window.scrollTo({top:0,behavior:"instant"});spec=v;remaining=v.s+v.e;chain=0;total=0;tenChainVoicePlayed=false;tenChainVoicePending=false;tenChainVoice.pause();tenChainVoice.currentTime=0;tenThousandVoicePlayed=false;milestoneVoicePending=false;tenThousandVoice.pause();tenThousandVoice.currentTime=0;twentyThousandVoicePlayed=false;twentyThousandVoicePending=false;twentyThousandVoice.pause();twentyThousandVoice.currentTime=0;thirtyThousandVoicePlayed=false;thirtyThousandVoicePending=false;thirtyThousandVoice.pause();thirtyThousandVoice.currentTime=0;fortyThousandVoicePlayed=false;fortyThousandVoicePending=false;fortyThousandVoice.pause();fortyThousandVoice.currentTime=0;fiftyThousandVoicePlayed=false;fiftyThousandVoicePending=false;fiftyThousandVoice.pause();fiftyThousandVoice.currentTime=0;payoutCueEpoch++;spinsDone=0;roundSpins=0;autoRunning=false;autoToken++;$("historyLog").innerHTML="";$("progress").textContent="消化回転数：0";active=true;holdQueue=[];pendingPrealerts=0;refill();ui.result.innerHTML='最高記録：<span id="best"></span>';ui.best=$("best");updateBest();ui.message.textContent="RUSH START";ui.sub.textContent="図柄が上から下へ流れて停止";ui.digits.classList.remove("win");digits(["–","–","–"]);stats();controls();
  // Initial holds also count as an appearance, but only after they are drawn.
  if(holdQueue.some(h=>h.haptic||h.prealert))requestAnimationFrame(()=>requestAnimationFrame(()=>{
   if(!active)return;
@@ -632,7 +658,7 @@ function start(){if(busy)return;document.getElementById("replayArea").hidden=tru
   const alerts=holdQueue.filter(h=>h.prealert&&!h.prealertPlayed);
   if(alerts.length){alerts.forEach(h=>h.prealertPlayed=true);if(holdQueue.some(h=>h.haptic))setTimeout(()=>{if(active)playPrealert();},650);else playPrealert();}
  }));}
-function fast(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
+function fast(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;fortyThousandVoicePending=false;fiftyThousandVoicePending=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
 $("replay").onclick=()=>{if(busy||active)return;start();};
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
 function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>180)box.lastChild.remove();}
@@ -687,7 +713,7 @@ async function autoPlay(){
     await settleHolds(out);
    }
    if(!valid() && active)break;
-   stats();flushMilestoneVoice();flushTwentyThousandVoice();flushThirtyThousandVoice();flushTenChainVoice();
+   stats();flushMilestoneVoice();flushTwentyThousandVoice();flushNewPayoutVoices();flushTenChainVoice();
    if(!out.hit&&remaining<=0){end();break;}
   }
  }catch(error){
@@ -704,7 +730,7 @@ ui.start.onclick=start;ui.spin.onclick=step;ui.auto.onclick=autoPlay;$("instant"
 $("backSettings").onclick=()=>{
  if(busy)return;
  autoRunning=false;autoToken++;
- stopRushVideo();bgmStop();specialVoice.pause();twentyThousandVoicePending=false;thirtyThousandVoicePending=false;thirtyThousandVoice.pause();document.getElementById("replayArea").hidden=true;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");active=false;holdQueue=[];pendingPrealerts=0;controls();
+ stopRushVideo();bgmStop();specialVoice.pause();twentyThousandVoicePending=false;thirtyThousandVoicePending=false;thirtyThousandVoice.pause();fortyThousandVoice.pause();fiftyThousandVoice.pause();payoutCueEpoch++;document.getElementById("replayArea").hidden=true;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");active=false;holdQueue=[];pendingPrealerts=0;controls();
  $("appRoot").classList.replace("play-mode","setup-mode");controls();
  exitRushFullscreen();
  window.scrollTo({top:0,behavior:"instant"});

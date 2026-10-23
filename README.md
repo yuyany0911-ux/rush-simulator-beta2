@@ -251,3 +251,8 @@ Ver.100: shared visual prealert dispatch on newly displayed holds; diagnostic co
 - Verified JS syntax and ZIP integrity. iPhone device playback/performance is not tested in this environment.
 
 Ver.104: Five effects have louder, peak-limited audio files; prealert WebAudio no longer applies extra attenuation. iPhone real-device listening not verified.
+
+## Ver.105
+30,000: new 三万発オーバー; 40,000: former 30,000 voice; 50,000: 最高っすね. Audio assets normalized and limited. Voices trigger after updated HUD paint. For single large payout crossing multiple thresholds, highest takes priority. 0.3s auto supported; instant simulation stays silent. iPhone hardware playback not tested.
+
+Ver.107: Removed sound preview control; RUSH pre-alert now uses HTMLAudio playback first (same route as working preview), with WebAudio fallback. 99% lottery and milestone voices unchanged. iPhone testing required.
