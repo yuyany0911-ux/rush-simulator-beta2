@@ -259,3 +259,5 @@ Ver.107: Removed sound preview control; RUSH pre-alert now uses HTMLAudio playba
 
 
 Ver.108: independent prealert audio playback; unchanged 99% lottery and all milestone cues. iPhone device verification pending.
+
+Ver.111: 出玉の単位表示を「玉」から「発」に変更（出玉設定の名称と音声ファイルは変更なし）。

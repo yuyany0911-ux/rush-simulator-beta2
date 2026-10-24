@@ -353,8 +353,8 @@ function playTenThousandVoice(){
  try{
   tenThousandVoice.currentTime=0;
   const result=tenThousandVoice.play();
-  if(result&&typeof result.catch==="function")result.catch(err=>console.warn("10000玉ボイス再生失敗",err));
- }catch(err){console.warn("10000玉ボイス再生エラー",err);}
+  if(result&&typeof result.catch==="function")result.catch(err=>console.warn("10000発ボイス再生失敗",err));
+ }catch(err){console.warn("10000発ボイス再生エラー",err);}
 }
 // Ver.95: fire only after the visible cumulative payout has reached 20,000.
 const twentyThousandVoice=new Audio("twenty-thousand-voice-v104.mp3");
@@ -371,8 +371,8 @@ function flushTwentyThousandVoice(){
   try{
    twentyThousandVoice.currentTime=0;
    const result=twentyThousandVoice.play();
-   if(result&&typeof result.catch==="function")result.catch(err=>console.warn("20000玉ボイス再生失敗",err));
-  }catch(err){console.warn("20000玉ボイス再生エラー",err);}
+   if(result&&typeof result.catch==="function")result.catch(err=>console.warn("20000発ボイス再生失敗",err));
+  }catch(err){console.warn("20000発ボイス再生エラー",err);}
  }));
 }
 // Ver.105: payout milestones are cued only AFTER the total HUD has been painted.
@@ -581,7 +581,7 @@ function updateHud(){
  $("hudRemain").textContent=spec?Math.min(remaining,spec.s):"---";
  $("hudChain").textContent=String(chain).padStart(2,"0");$("hudTotal").textContent=total.toLocaleString();renderHolds();
 }
-function stats(){updateHud();ui.chain.textContent=chain;ui.total.innerHTML=total.toLocaleString()+" <em>玉</em>";ui.remain.textContent=active?remaining:"---";}
+function stats(){updateHud();ui.chain.textContent=chain;ui.total.innerHTML=total.toLocaleString()+" <em>発</em>";ui.remain.textContent=active?remaining:"---";}
 function flushMilestoneVoice(){
  if(!milestoneVoicePending)return;
  milestoneVoicePending=false;
@@ -591,8 +591,8 @@ function flushMilestoneVoice(){
  }));
 }
 function payout(){const x=Math.random()*100;let sum=0;for(const [balls,p] of spec.rows){sum+=p;if(x<sum)return balls;}return spec.rows.at(-1)[0];}
-function updateBest(){let best={balls:0,chain:0};try{best=JSON.parse(localStorage.getItem("rushBestClassic"))||best}catch{};if(total>best.balls)best.balls=total;if(chain>best.chain)best.chain=chain;try{localStorage.setItem("rushBestClassic",JSON.stringify(best))}catch{}ui.best.textContent=`${best.balls.toLocaleString()}玉 / ${best.chain}連`;}
-function end(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;fortyThousandVoicePending=false;fiftyThousandVoicePending=false;remaining=0;document.getElementById("replayArea").hidden=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}玉`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}玉</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
+function updateBest(){let best={balls:0,chain:0};try{best=JSON.parse(localStorage.getItem("rushBestClassic"))||best}catch{};if(total>best.balls)best.balls=total;if(chain>best.chain)best.chain=chain;try{localStorage.setItem("rushBestClassic",JSON.stringify(best))}catch{}ui.best.textContent=`${best.balls.toLocaleString()}発 / ${best.chain}連`;}
+function end(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;fortyThousandVoicePending=false;fiftyThousandVoicePending=false;remaining=0;document.getElementById("replayArea").hidden=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");pendingPrealerts=0;stopRushVideo();bgmStop();autoRunning=false;active=false;holdQueue=[];ui.message.textContent="RUSH END";ui.sub.textContent=`FINAL RESULT  ${chain}連 / ${total.toLocaleString()}発`;ui.result.innerHTML=`今回の結果：<strong>${chain}連・${total.toLocaleString()}発</strong><br>最高記録：<span id="best"></span>`;ui.best=$("best");updateBest();stats();controls();}
 function draw(){
  if(!holdQueue.length)refill();
  const hold=holdQueue.shift()||newHold();
@@ -645,7 +645,7 @@ async function showFinal(out,ms){
  }
  ui.digits.classList.toggle("win",out.hit);
  ui.message.textContent=out.hit?"BONUS":"NEXT";
- ui.sub.textContent=out.hit?`+${out.balls.toLocaleString()}玉 / ${chain}連`:`ハズレ / ST残り${remaining}回転`;
+ ui.sub.textContent=out.hit?`+${out.balls.toLocaleString()}発 / ${chain}連`:`ハズレ / ST残り${remaining}回転`;
  if(out.hit){
   ui.flash.classList.remove("on");void ui.flash.offsetWidth;ui.flash.classList.add("on");if(!out.special810)playJackpotBounce();playJackpotSound();
  }
@@ -666,7 +666,7 @@ function start(){if(busy)return;document.getElementById("replayArea").hidden=tru
 function fast(){tenChainVoicePending=false;milestoneVoicePending=false;twentyThousandVoicePending=false;thirtyThousandVoicePending=false;fortyThousandVoicePending=false;fiftyThousandVoicePending=false;$("screen").querySelector(".rush-bottom-counter")?.classList.remove("high-confidence-active");if(!active||busy)return;pendingPrealerts=0;instantSimulating=true;busy=true;controls();let iterations=0;while(active){const out=draw();logSpin(out);iterations++;if(out.hit){ui.message.textContent="BONUS";ui.sub.textContent=`+ ${out.balls.toLocaleString()} BALLS`; }if(!out.hit&&remaining<=0)break;if(iterations>1000000){ui.error.textContent="安全のため100万回転で処理を停止しました。";break;}}pendingPrealerts=0;digits([String(rand(10)),String(rand(10)),String(rand(10))]);stats();end();instantSimulating=false;busy=false;controls();}
 $("replay").onclick=()=>{if(busy||active)return;start();};
 $("add").onclick=()=>{if(ui.payouts.children.length>=12)return;const row=document.createElement("div");row.className="row";row.innerHTML='<input aria-label="出玉" type="number" min="0" value="1500"><input aria-label="割合" type="number" min="0" value="0"><span>%</span>';ui.payouts.append(row);preview();};
-function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}玉 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>180)box.lastChild.remove();}
+function logSpin(out){$("progress").textContent=`消化回転数：${spinsDone.toLocaleString()}`;const el=document.createElement("div");el.className=out.hit?"hit":"miss";el.textContent=out.hit?`★ ${spinsDone}回転目（ST ${out.hitAt}回転目）：大当たり +${out.balls.toLocaleString()}発 ／ ${chain}連`:`${spinsDone}回転目：ハズレ（残り${remaining}回転）`;const box=$("historyLog");box.prepend(el);while(box.children.length>180)box.lastChild.remove();}
 // Fast path: cap each ordinary spin to ~300ms including visual updates.
 // Avoid multiple concurrent reel RAFs and overlapping hold animations.
 async function showUltraFast(out){
